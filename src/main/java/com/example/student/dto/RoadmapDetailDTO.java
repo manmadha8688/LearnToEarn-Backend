@@ -1,0 +1,34 @@
+package com.example.student.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data @AllArgsConstructor @NoArgsConstructor
+public class RoadmapDetailDTO {
+    private String id;
+    private String title;
+    private String description;
+    private String icon;
+    private String color;
+    private List<SubjectProgress> subjects;
+    private int totalSubjects;
+    private int completedSubjects;
+    private double overallPercentage;
+    private boolean enrolled;
+    private boolean paused;
+
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public static class SubjectProgress {
+        private String id;
+        private String title;
+        private String icon;
+        private String color;
+        private int orderIndex;
+        private int totalConcepts;
+        private long completedConcepts;
+        private double percentage;
+    }
+}

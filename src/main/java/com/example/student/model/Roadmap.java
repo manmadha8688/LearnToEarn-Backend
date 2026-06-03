@@ -1,0 +1,35 @@
+package com.example.student.model;
+
+import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.LocalDateTime;
+
+@Document(collection = "roadmaps")
+@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
+public class Roadmap {
+
+    @Id
+    private String id;
+
+    private String title;
+    private String description;
+    private String roleTarget;
+
+    @Builder.Default
+    private String icon = "🗺️";
+
+    @Builder.Default
+    private String color = "#7C3AED";
+
+    @Builder.Default
+    private int estimatedWeeks = 12;
+
+    @Builder.Default
+    private boolean isPublished = true;
+
+    @CreatedDate
+    private LocalDateTime createdAt;
+}
