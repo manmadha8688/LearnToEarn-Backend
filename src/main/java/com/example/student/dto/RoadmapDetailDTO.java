@@ -30,5 +30,6 @@ public class RoadmapDetailDTO {
         private int totalConcepts;
         private long completedConcepts;
         private double percentage;
+        private boolean hasBadge;
     }
 }

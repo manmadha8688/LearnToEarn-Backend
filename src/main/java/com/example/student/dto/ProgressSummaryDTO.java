@@ -20,13 +20,14 @@ public class ProgressSummaryDTO {
 
     @Data @AllArgsConstructor @NoArgsConstructor
     public static class SubjectProgress {
-        private String subjectId;
-        private String title;
-        private String icon;
-        private String color;
-        private String rank;
-        private int    total;
-        private long   completed;
-        private double percentage;
+        private String  subjectId;
+        private String  title;
+        private String  icon;
+        private String  color;
+        private String  rank;
+        private int     total;
+        private long    completed;
+        private double  percentage;
+        private boolean hasBadge;
     }
 }

@@ -19,30 +19,37 @@ public class RoadmapService {
     private final ConceptRepository conceptRepository;
     private final UserConceptProgressRepository progressRepository;
     private final UserRoadmapEnrollmentRepository enrollmentRepository;
+    private final UserSubjectBadgeRepository badgeRepository;
 
     public RoadmapService(RoadmapRepository roadmapRepository,
                           RoadmapSubjectRepository roadmapSubjectRepository,
                           ConceptRepository conceptRepository,
                           UserConceptProgressRepository progressRepository,
-                          UserRoadmapEnrollmentRepository enrollmentRepository) {
+                          UserRoadmapEnrollmentRepository enrollmentRepository,
+                          UserSubjectBadgeRepository badgeRepository) {
         this.roadmapRepository = roadmapRepository;
         this.roadmapSubjectRepository = roadmapSubjectRepository;
         this.conceptRepository = conceptRepository;
         this.progressRepository = progressRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.badgeRepository = badgeRepository;
     }
 
     public List<RoadmapListDTO> getAllRoadmaps(String userId) {
         return roadmapRepository.findByIsPublishedTrue().stream().map(r -> {
-            int subjectCount = roadmapSubjectRepository
-                    .findByRoadmapIdOrderByOrderIndex(r.getId()).size();
+            List<RoadmapSubject> roadmapSubjects =
+                    roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(r.getId());
+            int subjectCount = roadmapSubjects.size();
             java.util.Optional<UserRoadmapEnrollment> enr =
                     enrollmentRepository.findByUserIdAndRoadmapId(userId, r.getId());
             boolean enrolled = enr.isPresent();
             boolean paused   = enr.map(UserRoadmapEnrollment::isPaused).orElse(false);
+            boolean allSubjectsDone = enrolled && !roadmapSubjects.isEmpty() &&
+                    roadmapSubjects.stream().allMatch(rs ->
+                            badgeRepository.existsByUserIdAndSubjectId(userId, rs.getSubjectId()));
             return new RoadmapListDTO(r.getId(), r.getTitle(), r.getDescription(),
                     r.getRoleTarget(), r.getIcon(), r.getColor(),
-                    r.getEstimatedWeeks(), subjectCount, enrolled, paused);
+                    r.getEstimatedWeeks(), subjectCount, enrolled, paused, allSubjectsDone);
         }).collect(Collectors.toList());
     }
 
@@ -60,14 +67,15 @@ public class RoadmapService {
             double pct = total > 0
                     ? Math.round((completed * 100.0 / total) * 10) / 10.0
                     : 0;
+            boolean hasBadge = badgeRepository.existsByUserIdAndSubjectId(userId, s.getId());
             return new RoadmapDetailDTO.SubjectProgress(
                     s.getId(), s.getTitle(), s.getIcon(), s.getColor(),
-                    rs.getOrderIndex(), (int) total, completed, pct);
+                    rs.getOrderIndex(), (int) total, completed, pct, hasBadge);
         }).collect(Collectors.toList());
 
         int totalSubjects = subjects.size();
         int completedSubjects = (int) subjects.stream()
-                .filter(sp -> sp.getPercentage() >= 100).count();
+                .filter(RoadmapDetailDTO.SubjectProgress::isHasBadge).count();
         double overall = totalSubjects > 0
                 ? subjects.stream()
                         .mapToDouble(RoadmapDetailDTO.SubjectProgress::getPercentage)
