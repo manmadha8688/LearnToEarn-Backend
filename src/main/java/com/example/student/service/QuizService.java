@@ -17,6 +17,7 @@ public class QuizService {
     private final QuestionRepository questionRepo;
     private final QuizAttemptRepository attemptRepo;
     private final UserSubjectBadgeRepository badgeRepo;
+    private final UserRoadmapBadgeRepository roadmapBadgeRepo;
     private final ConceptRepository conceptRepo;
     private final SubjectRepository subjectRepo;
     private final RoadmapSubjectRepository roadmapSubjectRepo;
@@ -25,6 +26,7 @@ public class QuizService {
     public QuizService(QuestionRepository questionRepo,
                        QuizAttemptRepository attemptRepo,
                        UserSubjectBadgeRepository badgeRepo,
+                       UserRoadmapBadgeRepository roadmapBadgeRepo,
                        ConceptRepository conceptRepo,
                        SubjectRepository subjectRepo,
                        RoadmapSubjectRepository roadmapSubjectRepo,
@@ -32,6 +34,7 @@ public class QuizService {
         this.questionRepo = questionRepo;
         this.attemptRepo = attemptRepo;
         this.badgeRepo = badgeRepo;
+        this.roadmapBadgeRepo = roadmapBadgeRepo;
         this.conceptRepo = conceptRepo;
         this.subjectRepo = subjectRepo;
         this.roadmapSubjectRepo = roadmapSubjectRepo;
@@ -153,8 +156,19 @@ public class QuizService {
                     b.setEarnedAt(LocalDateTime.now());
                     badgeRepo.save(b);
                 }
+                xpEarned = progressService.awardXp(userId, score * 10);
             } else if ("ROADMAP".equals(type)) {
                 badge = score >= QuizConstants.ROADMAP_JOB_READY ? "JOB_READY" : "INTERVIEW_READY";
+                xpEarned = progressService.awardXp(userId, score * 10);
+                UserRoadmapBadge rb = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, refId)
+                        .orElse(new UserRoadmapBadge(null, userId, refId, badge, score, total, null));
+                if (rb.getScore() <= score) {
+                    rb.setBadge(badge);
+                    rb.setScore(score);
+                    rb.setTotal(total);
+                    rb.setEarnedAt(LocalDateTime.now());
+                    roadmapBadgeRepo.save(rb);
+                }
             }
         }
 
@@ -253,7 +267,14 @@ public class QuizService {
         List<RoadmapSubject> roadmapSubjects = roadmapSubjectRepo.findByRoadmapIdOrderByOrderIndex(roadmapId);
         boolean allSubjectsDone = !roadmapSubjects.isEmpty() && roadmapSubjects.stream()
                 .allMatch(rs -> badgeRepo.existsByUserIdAndSubjectId(userId, rs.getSubjectId()));
-        return Map.of("allSubjectsDone", allSubjectsDone);
+        java.util.Optional<UserRoadmapBadge> rb = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, roadmapId);
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("allSubjectsDone", allSubjectsDone);
+        result.put("hasBadge",  rb.isPresent());
+        result.put("badge",     rb.map(UserRoadmapBadge::getBadge).orElse(null));
+        result.put("badgeScore", rb.map(UserRoadmapBadge::getScore).orElse(0));
+        result.put("badgeTotal", rb.map(UserRoadmapBadge::getTotal).orElse(0));
+        return result;
     }
 
     // ─── HELPERS ──────────────────────────────────────────────────────────────

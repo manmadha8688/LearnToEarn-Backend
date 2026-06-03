@@ -16,4 +16,5 @@ public class RoadmapListDTO {
     private int subjectCount;
     private boolean enrolled;
     private boolean paused;
+    private boolean allSubjectsDone;
 }

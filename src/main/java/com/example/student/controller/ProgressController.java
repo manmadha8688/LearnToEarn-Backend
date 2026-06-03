@@ -32,4 +32,9 @@ public class ProgressController {
     public ResponseEntity<?> summary(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(progressService.getProgressSummary(user.getId()));
     }
+
+    @GetMapping("/hunter-stats")
+    public ResponseEntity<?> hunterStats(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(progressService.getHunterStats(user.getId()));
+    }
 }
