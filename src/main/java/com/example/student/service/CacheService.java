@@ -1,0 +1,119 @@
+package com.example.student.service;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+@Service
+public class CacheService {
+
+    private static final Logger log = LoggerFactory.getLogger(CacheService.class);
+
+    // TTL in seconds per cache name
+    static final Map<String, Long> TTLS = Map.of(
+        "subjects",    86400L,   // 24 h
+        "concepts",    86400L,   // 24 h
+        "roadmaps",    86400L,   // 24 h
+        "userProfile", 1800L,    // 30 min
+        "progress",    300L      // 5 min
+    );
+
+    private final Map<String, Cache<String, Object>> caffeineCaches;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public CacheService(
+            @Autowired(required = false) @Qualifier("cacheRedisTemplate")
+            RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+        this.caffeineCaches = new HashMap<>();
+        TTLS.forEach((name, ttl) ->
+            caffeineCaches.put(name, Caffeine.newBuilder()
+                .maximumSize(1000)
+                .expireAfterWrite(ttl, TimeUnit.SECONDS)
+                .build())
+        );
+    }
+
+    /**
+     * Get a value: Caffeine → Redis → dbSupplier, warming upper layers on miss.
+     * Never throws even if Redis is down.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T get(String cacheName, String key, Supplier<T> dbSupplier) {
+        Cache<String, Object> caffeine = caffeineCaches.get(cacheName);
+        String redisKey = cacheName + ":" + key;
+
+        // L1 — Caffeine (microseconds)
+        if (caffeine != null) {
+            Object hit = caffeine.getIfPresent(key);
+            if (hit != null) return (T) hit;
+        }
+
+        // L2 — Redis (2-5 ms, survives restarts)
+        if (redisTemplate != null) {
+            try {
+                Object hit = redisTemplate.opsForValue().get(redisKey);
+                if (hit != null) {
+                    if (caffeine != null) caffeine.put(key, hit); // warm L1
+                    return (T) hit;
+                }
+            } catch (Exception e) {
+                log.warn("Redis GET failed [{}]: {}", redisKey, e.getMessage());
+            }
+        }
+
+        // L3 — Database
+        T value = dbSupplier.get();
+        if (value != null) {
+            if (caffeine != null) caffeine.put(key, value);
+            if (redisTemplate != null) {
+                try {
+                    long ttl = TTLS.getOrDefault(cacheName, 3600L);
+                    redisTemplate.opsForValue().set(redisKey, value, Duration.ofSeconds(ttl));
+                } catch (Exception e) {
+                    log.warn("Redis SET failed [{}]: {}", redisKey, e.getMessage());
+                }
+            }
+        }
+        return value;
+    }
+
+    /** Evict a single key from both cache levels. */
+    public void evict(String cacheName, String key) {
+        Cache<String, Object> caffeine = caffeineCaches.get(cacheName);
+        if (caffeine != null) caffeine.invalidate(key);
+        if (redisTemplate != null) {
+            try {
+                redisTemplate.delete(cacheName + ":" + key);
+            } catch (Exception e) {
+                log.warn("Redis DELETE failed [{}:{}]: {}", cacheName, key, e.getMessage());
+            }
+        }
+    }
+
+    /** Evict every key in a cache namespace from both levels. */
+    public void evictAll(String cacheName) {
+        Cache<String, Object> caffeine = caffeineCaches.get(cacheName);
+        if (caffeine != null) caffeine.invalidateAll();
+        if (redisTemplate != null) {
+            try {
+                Set<String> keys = redisTemplate.keys(cacheName + ":*");
+                if (keys != null && !keys.isEmpty()) redisTemplate.delete(keys);
+            } catch (Exception e) {
+                log.warn("Redis KEYS/DELETE failed [{}:*]: {}", cacheName, e.getMessage());
+            }
+        }
+    }
+}

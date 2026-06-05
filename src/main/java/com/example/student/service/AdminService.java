@@ -27,6 +27,7 @@ public class AdminService {
     private final QuizAttemptRepository quizAttemptRepository;
     private final UserSubjectBadgeRepository badgeRepository;
     private final UserRoadmapEnrollmentRepository enrollmentRepository;
+    private final CacheService cacheService;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -37,7 +38,8 @@ public class AdminService {
                         QuestionRepository questionRepository,
                         QuizAttemptRepository quizAttemptRepository,
                         UserSubjectBadgeRepository badgeRepository,
-                        UserRoadmapEnrollmentRepository enrollmentRepository) {
+                        UserRoadmapEnrollmentRepository enrollmentRepository,
+                        CacheService cacheService) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -48,6 +50,7 @@ public class AdminService {
         this.quizAttemptRepository = quizAttemptRepository;
         this.badgeRepository = badgeRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.cacheService = cacheService;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -156,7 +159,9 @@ public class AdminService {
         s.setDifficulty(req.getDifficulty());
         s.setEstimatedHours(req.getEstimatedHours());
         s.setCareerUse(req.getCareerUse());
-        return subjectRepository.save(s);
+        Subject saved = subjectRepository.save(s);
+        cacheService.evictAll("subjects");
+        return saved;
     }
 
     public Subject updateSubject(String id, AdminSubjectRequest req) {
@@ -176,7 +181,10 @@ public class AdminService {
         if (req.getDifficulty() != null) s.setDifficulty(req.getDifficulty());
         if (req.getEstimatedHours() > 0) s.setEstimatedHours(req.getEstimatedHours());
         if (req.getCareerUse() != null) s.setCareerUse(req.getCareerUse());
-        return subjectRepository.save(s);
+        Subject saved = subjectRepository.save(s);
+        cacheService.evict("subjects", "all");
+        cacheService.evict("subjects", "id:" + id);
+        return saved;
     }
 
     public void deleteSubject(String id) {
@@ -197,6 +205,8 @@ public class AdminService {
         roadmapSubjectRepository.deleteBySubjectId(id);
         conceptRepository.deleteBySubjectId(id);
         subjectRepository.deleteById(id);
+        cacheService.evictAll("subjects");
+        cacheService.evictAll("concepts");
     }
 
     // ─── CONCEPTS ────────────────────────────────────────────────────────────
@@ -241,6 +251,10 @@ public class AdminService {
         Concept saved = conceptRepository.save(c);
         subject.setTotalConcepts((int) conceptRepository.countBySubjectId(subject.getId()));
         subjectRepository.save(subject);
+        cacheService.evict("concepts", "subject:" + subject.getId());
+        cacheService.evict("concepts", "count:" + subject.getId());
+        cacheService.evict("subjects", "id:" + subject.getId());
+        cacheService.evict("subjects", "all");
         return saved;
     }
 
@@ -286,7 +300,10 @@ public class AdminService {
             c.setOrderIndex(newIdx);
         }
 
-        return conceptRepository.save(c);
+        Concept updated = conceptRepository.save(c);
+        cacheService.evict("concepts", "id:" + id);
+        cacheService.evict("concepts", "subject:" + c.getSubjectId());
+        return updated;
     }
 
     public void deleteConcept(String id) {
@@ -303,6 +320,11 @@ public class AdminService {
             subject.setTotalConcepts((int) conceptRepository.countBySubjectId(subjectId));
             subjectRepository.save(subject);
         });
+        cacheService.evict("concepts", "id:" + id);
+        cacheService.evict("concepts", "subject:" + subjectId);
+        cacheService.evict("concepts", "count:" + subjectId);
+        cacheService.evict("subjects", "id:" + subjectId);
+        cacheService.evict("subjects", "all");
     }
 
     // ─── ROADMAPS ────────────────────────────────────────────────────────────
@@ -320,7 +342,9 @@ public class AdminService {
         r.setColor(req.getColor() != null ? req.getColor() : "#7C3AED");
         r.setEstimatedWeeks(req.getEstimatedWeeks() > 0 ? req.getEstimatedWeeks() : 12);
         r.setPublished(true);
-        return roadmapRepository.save(r);
+        Roadmap saved = roadmapRepository.save(r);
+        cacheService.evictAll("roadmaps");
+        return saved;
     }
 
     public Roadmap updateRoadmap(String id, AdminRoadmapRequest req) {
@@ -332,7 +356,9 @@ public class AdminService {
         if (req.getIcon() != null) r.setIcon(req.getIcon());
         if (req.getColor() != null) r.setColor(req.getColor());
         if (req.getEstimatedWeeks() > 0) r.setEstimatedWeeks(req.getEstimatedWeeks());
-        return roadmapRepository.save(r);
+        Roadmap saved = roadmapRepository.save(r);
+        cacheService.evictAll("roadmaps");
+        return saved;
     }
 
     public void deleteRoadmap(String id) {
@@ -342,6 +368,7 @@ public class AdminService {
         enrollmentRepository.deleteByRoadmapId(id);
         roadmapSubjectRepository.deleteByRoadmapId(id);
         roadmapRepository.deleteById(id);
+        cacheService.evictAll("roadmaps");
     }
 
     public List<RoadmapSubject> getRoadmapSubjects(String roadmapId) {
