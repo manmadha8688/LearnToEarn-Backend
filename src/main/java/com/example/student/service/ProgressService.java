@@ -197,7 +197,7 @@ public class ProgressService {
                     return new ProgressSummaryDTO.SubjectProgress(
                             s.getId(), s.getTitle(), s.getIcon(), s.getColor(),
                             s.getRank() != null ? s.getRank() : "E",
-                            total, completed, pct, hasBadge);
+                            (int) total, completed, pct, hasBadge);
                 })
                 .filter(sp -> sp != null)
                 .collect(Collectors.toList());
