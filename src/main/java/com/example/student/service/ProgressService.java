@@ -3,6 +3,8 @@ package com.example.student.service;
 import com.example.student.dto.ProgressSummaryDTO;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Concept;
+import com.example.student.model.Roadmap;
+import com.example.student.model.Subject;
 import com.example.student.model.User;
 import com.example.student.model.UserConceptProgress;
 import com.example.student.repository.ConceptRepository;
@@ -17,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ public class ProgressService {
     private final UserSubjectBadgeRepository badgeRepository;
     private final UserRoadmapBadgeRepository roadmapBadgeRepository;
     private final RoadmapRepository roadmapRepository;
+    private final CacheService cacheService;
 
     public ProgressService(UserConceptProgressRepository progressRepository,
                            ConceptRepository conceptRepository,
@@ -43,7 +45,8 @@ public class ProgressService {
                            QuizAttemptRepository quizAttemptRepository,
                            UserSubjectBadgeRepository badgeRepository,
                            UserRoadmapBadgeRepository roadmapBadgeRepository,
-                           RoadmapRepository roadmapRepository) {
+                           RoadmapRepository roadmapRepository,
+                           CacheService cacheService) {
         this.progressRepository = progressRepository;
         this.conceptRepository = conceptRepository;
         this.subjectRepository = subjectRepository;
@@ -52,6 +55,7 @@ public class ProgressService {
         this.badgeRepository = badgeRepository;
         this.roadmapBadgeRepository = roadmapBadgeRepository;
         this.roadmapRepository = roadmapRepository;
+        this.cacheService = cacheService;
     }
 
     private static String computeRank(long xp) {
@@ -107,6 +111,8 @@ public class ProgressService {
             userRepository.save(user);
         });
 
+        cacheService.evict("progress", "summary:" + userId);
+
         return Map.of("message", "Completed", "conceptId", conceptId,
                 "xpEarned", totalXp, "dailyBonusEarned", isFirstToday);
     }
@@ -126,15 +132,22 @@ public class ProgressService {
             user.setRank(computeRank(newXp));
             userRepository.save(user);
         });
+        cacheService.evict("progress", "summary:" + userId);
         return amount;
     }
 
     public Map<String, Object> uncompleteConcept(String conceptId, String userId) {
         progressRepository.deleteByUserIdAndConceptId(userId, conceptId);
+        cacheService.evict("progress", "summary:" + userId);
         return Map.of("message", "Unmarked");
     }
 
     public ProgressSummaryDTO getProgressSummary(String userId) {
+        // L1 Caffeine → L2 Redis → buildProgressSummary (5-min TTL, evicted on mutations)
+        return cacheService.get("progress", "summary:" + userId, () -> buildProgressSummary(userId));
+    }
+
+    private ProgressSummaryDTO buildProgressSummary(String userId) {
         long totalConcepts     = conceptRepository.count();
         long completedConcepts = progressRepository.countByUserId(userId);
         double percentage = totalConcepts > 0
@@ -142,8 +155,9 @@ public class ProgressService {
                 : 0;
 
         // ── Streak ──────────────────────────────────────────────────────────
-        List<UserConceptProgress> all = progressRepository.findByUserId(userId);
-        Set<LocalDate> completionDates = all.stream()
+        // Fetch once and reuse below for per-subject counts (saves N DB queries)
+        List<UserConceptProgress> allProgress = progressRepository.findByUserId(userId);
+        Set<LocalDate> completionDates = allProgress.stream()
                 .filter(p -> p.getCompletedAt() != null)
                 .map(p -> p.getCompletedAt().toLocalDate())
                 .collect(Collectors.toSet());
@@ -159,21 +173,33 @@ public class ProgressService {
         String rank  = user != null ? user.getRank()   : computeRank(xp);
 
         // ── Per-subject progress ─────────────────────────────────────────────
-        List<ProgressSummaryDTO.SubjectProgress> subjectProgress = subjectRepository.findAll()
-                .stream()
-                .filter(s -> conceptRepository.countBySubjectId(s.getId()) > 0)
+        // Count completed concepts per subject in memory (no N countByUserIdAndSubjectId queries)
+        Map<String, Long> completedBySubject = allProgress.stream()
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
+
+        // One badge query instead of N existsByUserIdAndSubjectId calls
+        Set<String> badgeSubjectIds = badgeRepository.findByUserId(userId).stream()
+                .map(b -> b.getSubjectId())
+                .collect(Collectors.toSet());
+
+        // Subject list from Caffeine (0 DB — warmed on startup by CacheWarmup)
+        List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
+
+        List<ProgressSummaryDTO.SubjectProgress> subjectProgress = subjects.stream()
                 .map(s -> {
-                    int total = (int) conceptRepository.countBySubjectId(s.getId());
-                    long completed = progressRepository.countByUserIdAndSubjectId(userId, s.getId());
-                    double pct = total > 0
-                            ? Math.round((completed * 100.0 / total) * 10) / 10.0
-                            : 0;
-                    boolean hasBadge = badgeRepository.existsByUserIdAndSubjectId(userId, s.getId());
+                    // Concept count from Caffeine (0 DB — warmed on startup)
+                    long total = cacheService.get("concepts", "count:" + s.getId(),
+                            () -> conceptRepository.countBySubjectId(s.getId()));
+                    if (total == 0) return null;
+                    long completed = completedBySubject.getOrDefault(s.getId(), 0L);
+                    double pct = Math.round((completed * 100.0 / total) * 10) / 10.0;
+                    boolean hasBadge = badgeSubjectIds.contains(s.getId());
                     return new ProgressSummaryDTO.SubjectProgress(
                             s.getId(), s.getTitle(), s.getIcon(), s.getColor(),
                             s.getRank() != null ? s.getRank() : "E",
                             total, completed, pct, hasBadge);
                 })
+                .filter(sp -> sp != null)
                 .collect(Collectors.toList());
 
         // ── Today's concept completion (cross-device quest sync) ────────────
@@ -181,13 +207,12 @@ public class ProgressService {
                 .existsByUserIdAndTypeAndPassedTrueAndTakenAtAfter(
                         userId, "CONCEPT", LocalDate.now().atStartOfDay());
 
-        ProgressSummaryDTO dto = new ProgressSummaryDTO(totalConcepts, completedConcepts, percentage,
+        return new ProgressSummaryDTO(totalConcepts, completedConcepts, percentage,
                 streak, xp, level, rank, completedConceptToday, subjectProgress);
-        return dto;
     }
 
     public Map<String, Object> getHunterStats(String userId) {
-        // ── Badges joined with subject info ──────────────────────────────────
+        // ── Badges joined with subject info (subject from Caffeine cache) ─────
         List<Map<String, Object>> badges = badgeRepository.findByUserId(userId).stream()
                 .map(b -> {
                     Map<String, Object> m = new LinkedHashMap<>();
@@ -195,17 +220,19 @@ public class ProgressService {
                     m.put("score",     b.getScore());
                     m.put("total",     b.getTotal());
                     m.put("earnedAt",  b.getEarnedAt() != null ? b.getEarnedAt().toString() : "");
-                    subjectRepository.findById(b.getSubjectId()).ifPresent(s -> {
+                    Subject s = cacheService.get("subjects", "id:" + b.getSubjectId(),
+                            () -> subjectRepository.findById(b.getSubjectId()).orElse(null));
+                    if (s != null) {
                         m.put("title", s.getTitle());
                         m.put("icon",  s.getIcon() != null  ? s.getIcon()  : "📚");
                         m.put("color", s.getColor() != null ? s.getColor() : "#9B6ED4");
                         m.put("rank",  s.getRank() != null  ? s.getRank()  : "E");
-                    });
+                    }
                     return m;
                 })
                 .collect(Collectors.toList());
 
-        // ── Roadmap badges joined with roadmap info ───────────────────────────
+        // ── Roadmap badges joined with roadmap info (roadmap from Caffeine cache) ─
         List<Map<String, Object>> roadmapBadges = roadmapBadgeRepository.findByUserId(userId).stream()
                 .map(b -> {
                     Map<String, Object> m = new LinkedHashMap<>();
@@ -215,11 +242,13 @@ public class ProgressService {
                     m.put("total",     b.getTotal());
                     m.put("earnedAt",  b.getEarnedAt() != null ? b.getEarnedAt().toString() : "");
                     m.put("type",      "ROADMAP");
-                    roadmapRepository.findById(b.getRoadmapId()).ifPresent(r -> {
+                    Roadmap r = cacheService.get("roadmaps", "id:" + b.getRoadmapId(),
+                            () -> roadmapRepository.findById(b.getRoadmapId()).orElse(null));
+                    if (r != null) {
                         m.put("title", r.getTitle());
                         m.put("icon",  r.getIcon() != null  ? r.getIcon()  : "🗺️");
                         m.put("color", r.getColor() != null ? r.getColor() : "#9B6ED4");
-                    });
+                    }
                     return m;
                 })
                 .collect(Collectors.toList());
