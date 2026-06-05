@@ -17,23 +17,29 @@ public class ConceptService {
 
     private final ConceptRepository conceptRepository;
     private final UserConceptProgressRepository progressRepository;
+    private final CacheService cacheService;
 
     public ConceptService(ConceptRepository conceptRepository,
-                          UserConceptProgressRepository progressRepository) {
+                          UserConceptProgressRepository progressRepository,
+                          CacheService cacheService) {
         this.conceptRepository = conceptRepository;
         this.progressRepository = progressRepository;
+        this.cacheService = cacheService;
     }
 
     public List<ConceptDTO> getConceptsForSubject(String subjectId, String userId) {
-        return conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId)
-                .stream().map(c -> toDTO(c, userId)).collect(Collectors.toList());
+        List<Concept> concepts = cacheService.get("concepts", "subject:" + subjectId,
+                () -> conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId));
+        return concepts.stream().map(c -> toDTO(c, userId)).collect(Collectors.toList());
     }
 
     public ConceptDetailDTO getConceptDetail(String conceptId, String userId) {
-        Concept concept = conceptRepository.findById(conceptId)
-                .orElseThrow(() -> new ResourceNotFoundException("Concept not found"));
+        Concept concept = cacheService.get("concepts", "id:" + conceptId,
+                () -> conceptRepository.findById(conceptId).orElse(null));
+        if (concept == null) throw new ResourceNotFoundException("Concept not found");
 
-        List<Concept> siblings = conceptRepository.findBySubjectIdOrderByOrderIndex(concept.getSubjectId());
+        List<Concept> siblings = cacheService.get("concepts", "subject:" + concept.getSubjectId(),
+                () -> conceptRepository.findBySubjectIdOrderByOrderIndex(concept.getSubjectId()));
 
         int currentIdx = -1;
         for (int i = 0; i < siblings.size(); i++) {

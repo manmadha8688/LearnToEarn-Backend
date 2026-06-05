@@ -24,40 +24,46 @@ public class SubjectService {
     private final ConceptRepository conceptRepository;
     private final UserConceptProgressRepository progressRepository;
     private final QuizAttemptRepository attemptRepository;
+    private final CacheService cacheService;
 
     public SubjectService(SubjectRepository subjectRepository,
                           ConceptRepository conceptRepository,
                           UserConceptProgressRepository progressRepository,
-                          QuizAttemptRepository attemptRepository) {
+                          QuizAttemptRepository attemptRepository,
+                          CacheService cacheService) {
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
         this.progressRepository = progressRepository;
         this.attemptRepository = attemptRepository;
+        this.cacheService = cacheService;
     }
 
     public List<SubjectDTO> getAllSubjects(String userId) {
-        return subjectRepository.findAll().stream()
+        List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
+        return subjects.stream()
                 .map(s -> toDTO(s, userId))
                 .collect(Collectors.toList());
     }
 
     public Map<String, Object> getSubjectDetail(String subjectId, String userId) {
-        Subject subject = subjectRepository.findById(subjectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found"));
+        Subject subject = cacheService.get("subjects", "id:" + subjectId,
+                () -> subjectRepository.findById(subjectId).orElse(null));
+        if (subject == null) throw new ResourceNotFoundException("Subject not found");
 
-        // Batch: completed concept IDs from UserConceptProgress (primary source)
+        // User-specific progress — not cached (indexed, sub-ms, changes on concept completion)
         Set<String> completedByProgress = progressRepository.findByUserId(userId).stream()
                 .filter(p -> subjectId.equals(p.getSubjectId()))
                 .map(p -> p.getConceptId())
                 .collect(Collectors.toSet());
 
-        // Batch: concept IDs cleared via quiz (fallback — handles data inconsistency
-        // where attempt.passed=true but UserConceptProgress entry was never created)
         Set<String> clearedByQuiz = attemptRepository.findByUserIdAndTypeAndPassedTrue(userId, "CONCEPT")
                 .stream().map(QuizAttempt::getRefId).collect(Collectors.toSet());
 
-        List<ConceptDTO> concepts = conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId)
-                .stream().map(c -> toConceptDTO(c, completedByProgress, clearedByQuiz))
+        List<Concept> rawConcepts = cacheService.get("concepts", "subject:" + subjectId,
+                () -> conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId));
+
+        List<ConceptDTO> concepts = rawConcepts.stream()
+                .map(c -> toConceptDTO(c, completedByProgress, clearedByQuiz))
                 .collect(Collectors.toList());
 
         long total = concepts.size();
@@ -92,7 +98,9 @@ public class SubjectService {
     }
 
     private SubjectDTO toDTO(Subject s, String userId) {
-        long total = conceptRepository.countBySubjectId(s.getId());
+        // Concept count is static — safe to cache; per-user progress stays direct (changes on completion)
+        long total = cacheService.get("concepts", "count:" + s.getId(),
+                () -> conceptRepository.countBySubjectId(s.getId()));
         long completed = progressRepository.countByUserIdAndSubjectId(userId, s.getId());
         SubjectDTO dto = new SubjectDTO();
         dto.setId(s.getId());
