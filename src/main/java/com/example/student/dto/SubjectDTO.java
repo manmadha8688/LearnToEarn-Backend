@@ -23,6 +23,7 @@ public class SubjectDTO {
     private List<String> prerequisites;
     private List<String> outcomes;
     private List<String> whatYouWillBuild;
+    private List<String> toolsRequired;
     private String difficulty;
     private int estimatedHours;
     private String careerUse;
