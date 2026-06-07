@@ -156,6 +156,7 @@ public class AdminService {
         s.setPrerequisites(req.getPrerequisites());
         s.setOutcomes(req.getOutcomes());
         s.setWhatYouWillBuild(req.getWhatYouWillBuild());
+        s.setToolsRequired(req.getToolsRequired());
         s.setDifficulty(req.getDifficulty());
         s.setEstimatedHours(req.getEstimatedHours());
         s.setCareerUse(req.getCareerUse());
@@ -178,6 +179,7 @@ public class AdminService {
         if (req.getPrerequisites() != null) s.setPrerequisites(req.getPrerequisites());
         if (req.getOutcomes() != null) s.setOutcomes(req.getOutcomes());
         if (req.getWhatYouWillBuild() != null) s.setWhatYouWillBuild(req.getWhatYouWillBuild());
+        if (req.getToolsRequired() != null) s.setToolsRequired(req.getToolsRequired());
         if (req.getDifficulty() != null) s.setDifficulty(req.getDifficulty());
         if (req.getEstimatedHours() > 0) s.setEstimatedHours(req.getEstimatedHours());
         if (req.getCareerUse() != null) s.setCareerUse(req.getCareerUse());
