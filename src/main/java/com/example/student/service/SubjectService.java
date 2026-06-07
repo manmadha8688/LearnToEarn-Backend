@@ -86,6 +86,7 @@ public class SubjectService {
         result.put("prerequisites",    subject.getPrerequisites());
         result.put("outcomes",         subject.getOutcomes());
         result.put("whatYouWillBuild", subject.getWhatYouWillBuild());
+        result.put("toolsRequired",    subject.getToolsRequired());
         result.put("difficulty",       subject.getDifficulty());
         result.put("estimatedHours",   subject.getEstimatedHours());
         result.put("careerUse",        subject.getCareerUse());
@@ -117,6 +118,7 @@ public class SubjectService {
         dto.setPrerequisites(s.getPrerequisites());
         dto.setOutcomes(s.getOutcomes());
         dto.setWhatYouWillBuild(s.getWhatYouWillBuild());
+        dto.setToolsRequired(s.getToolsRequired());
         dto.setDifficulty(s.getDifficulty());
         dto.setEstimatedHours(s.getEstimatedHours());
         dto.setCareerUse(s.getCareerUse());
