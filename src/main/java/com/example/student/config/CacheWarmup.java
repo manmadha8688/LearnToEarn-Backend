@@ -6,6 +6,7 @@ import com.example.student.repository.ConceptRepository;
 import com.example.student.repository.MissionRepository;
 import com.example.student.repository.ProblemRepository;
 import com.example.student.repository.RoadmapRepository;
+import com.example.student.repository.RoadmapSubjectRepository;
 import com.example.student.repository.SubjectRepository;
 import com.example.student.service.CacheService;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ public class CacheWarmup {
     private final SubjectRepository subjectRepository;
     private final ConceptRepository conceptRepository;
     private final RoadmapRepository roadmapRepository;
+    private final RoadmapSubjectRepository roadmapSubjectRepository;
     private final MissionRepository missionRepository;
     private final ProblemRepository problemRepository;
 
@@ -37,12 +39,14 @@ public class CacheWarmup {
                        SubjectRepository subjectRepository,
                        ConceptRepository conceptRepository,
                        RoadmapRepository roadmapRepository,
+                       RoadmapSubjectRepository roadmapSubjectRepository,
                        MissionRepository missionRepository,
                        ProblemRepository problemRepository) {
         this.cacheService = cacheService;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
         this.roadmapRepository = roadmapRepository;
+        this.roadmapSubjectRepository = roadmapSubjectRepository;
         this.missionRepository = missionRepository;
         this.problemRepository = problemRepository;
     }
@@ -94,9 +98,18 @@ public class CacheWarmup {
     // ─── Roadmaps ────────────────────────────────────────────────────────────
 
     private void warmRoadmaps() {
-        var roadmaps = cacheService.get("roadmaps", "all", roadmapRepository::findAll);
-        int count = roadmaps == null ? 0 : roadmaps.size();
+        var all      = cacheService.get("roadmaps", "all",       roadmapRepository::findAll);
+        var published = cacheService.get("roadmaps", "published", roadmapRepository::findByIsPublishedTrue);
+        int count = published == null ? 0 : published.size();
         log.info("Cache warmup: {} roadmaps", count);
+        // Warm per-roadmap subject lists
+        if (published != null) {
+            for (var r : published) {
+                final String rid = r.getId();
+                cacheService.get("roadmaps", "subjects:" + rid,
+                        () -> roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(rid));
+            }
+        }
     }
 
     // ─── Missions ────────────────────────────────────────────────────────────

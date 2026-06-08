@@ -5,10 +5,11 @@ import com.example.student.dto.RoadmapListDTO;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.*;
 import com.example.student.repository.*;
+import com.example.student.service.CacheService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,36 +21,74 @@ public class RoadmapService {
     private final UserConceptProgressRepository progressRepository;
     private final UserRoadmapEnrollmentRepository enrollmentRepository;
     private final UserSubjectBadgeRepository badgeRepository;
+    private final CacheService cacheService;
 
     public RoadmapService(RoadmapRepository roadmapRepository,
                           RoadmapSubjectRepository roadmapSubjectRepository,
                           ConceptRepository conceptRepository,
                           UserConceptProgressRepository progressRepository,
                           UserRoadmapEnrollmentRepository enrollmentRepository,
-                          UserSubjectBadgeRepository badgeRepository) {
+                          UserSubjectBadgeRepository badgeRepository,
+                          CacheService cacheService) {
         this.roadmapRepository = roadmapRepository;
         this.roadmapSubjectRepository = roadmapSubjectRepository;
         this.conceptRepository = conceptRepository;
         this.progressRepository = progressRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.badgeRepository = badgeRepository;
+        this.cacheService = cacheService;
     }
 
     public List<RoadmapListDTO> getAllRoadmaps(String userId) {
-        return roadmapRepository.findByIsPublishedTrue().stream().map(r -> {
-            List<RoadmapSubject> roadmapSubjects =
-                    roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(r.getId());
+        // Load static data from cache (set by CacheWarmup + evicted on admin mutations)
+        List<Roadmap> roadmaps = cacheService.get("roadmaps", "published",
+                roadmapRepository::findByIsPublishedTrue);
+        if (roadmaps == null) roadmaps = roadmapRepository.findByIsPublishedTrue();
+
+        // 2 bulk queries for user-specific data instead of N + N×M individual queries
+        Map<String, UserRoadmapEnrollment> enrollmentMap = enrollmentRepository
+                .findByUserId(userId).stream()
+                .collect(Collectors.toMap(UserRoadmapEnrollment::getRoadmapId, e -> e));
+
+        Set<String> badgedSubjectIds = badgeRepository.findByUserId(userId).stream()
+                .map(UserSubjectBadge::getSubjectId)
+                .collect(Collectors.toSet());
+
+        return roadmaps.stream().map(r -> {
+            // Roadmap subjects — cached (static, only changes when admin edits)
+            List<RoadmapSubject> roadmapSubjects = cacheService.get(
+                    "roadmaps", "subjects:" + r.getId(),
+                    () -> roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(r.getId()));
+            if (roadmapSubjects == null) roadmapSubjects = List.of();
+
             int subjectCount = roadmapSubjects.size();
-            java.util.Optional<UserRoadmapEnrollment> enr =
-                    enrollmentRepository.findByUserIdAndRoadmapId(userId, r.getId());
-            boolean enrolled = enr.isPresent();
-            boolean paused   = enr.map(UserRoadmapEnrollment::isPaused).orElse(false);
-            boolean allSubjectsDone = enrolled && !roadmapSubjects.isEmpty() &&
+            UserRoadmapEnrollment enr = enrollmentMap.get(r.getId());
+            boolean enrolled = enr != null;
+            boolean paused   = enr != null && enr.isPaused();
+            boolean allSubjectsDone = enrolled && subjectCount > 0 &&
                     roadmapSubjects.stream().allMatch(rs ->
-                            badgeRepository.existsByUserIdAndSubjectId(userId, rs.getSubjectId()));
-            return new RoadmapListDTO(r.getId(), r.getTitle(), r.getDescription(),
-                    r.getRoleTarget(), r.getIcon(), r.getColor(),
-                    r.getEstimatedWeeks(), subjectCount, enrolled, paused, allSubjectsDone);
+                            badgedSubjectIds.contains(rs.getSubjectId()));
+
+            RoadmapListDTO dto = new RoadmapListDTO();
+            dto.setId(r.getId());
+            dto.setTitle(r.getTitle());
+            dto.setDescription(r.getDescription());
+            dto.setRoleTarget(r.getRoleTarget());
+            dto.setIcon(r.getIcon());
+            dto.setColor(r.getColor());
+            dto.setEstimatedWeeks(r.getEstimatedWeeks());
+            dto.setSubjectCount(subjectCount);
+            dto.setEnrolled(enrolled);
+            dto.setPaused(paused);
+            dto.setAllSubjectsDone(allSubjectsDone);
+            dto.setRoleTargets(r.getRoleTargets());
+            dto.setOverview(r.getOverview());
+            dto.setWhyLearn(r.getWhyLearn());
+            dto.setForWho(r.getForWho());
+            dto.setPrerequisites(r.getPrerequisites());
+            dto.setToolsRequired(r.getToolsRequired());
+            dto.setOutcomes(r.getOutcomes());
+            return dto;
         }).collect(Collectors.toList());
     }
 
