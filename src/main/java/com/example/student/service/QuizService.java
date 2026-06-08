@@ -1,6 +1,7 @@
 package com.example.student.service;
 
 import com.example.student.config.QuizConstants;
+import com.example.student.service.CacheService;
 import com.example.student.dto.*;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.*;
@@ -22,6 +23,8 @@ public class QuizService {
     private final SubjectRepository subjectRepo;
     private final RoadmapSubjectRepository roadmapSubjectRepo;
     private final ProgressService progressService;
+    private final UserConceptProgressRepository progressRepo;
+    private final CacheService cacheService;
 
     public QuizService(QuestionRepository questionRepo,
                        QuizAttemptRepository attemptRepo,
@@ -30,7 +33,9 @@ public class QuizService {
                        ConceptRepository conceptRepo,
                        SubjectRepository subjectRepo,
                        RoadmapSubjectRepository roadmapSubjectRepo,
-                       ProgressService progressService) {
+                       ProgressService progressService,
+                       UserConceptProgressRepository progressRepo,
+                       CacheService cacheService) {
         this.questionRepo = questionRepo;
         this.attemptRepo = attemptRepo;
         this.badgeRepo = badgeRepo;
@@ -39,6 +44,8 @@ public class QuizService {
         this.subjectRepo = subjectRepo;
         this.roadmapSubjectRepo = roadmapSubjectRepo;
         this.progressService = progressService;
+        this.progressRepo = progressRepo;
+        this.cacheService = cacheService;
     }
 
     // ─── START ────────────────────────────────────────────────────────────────
@@ -261,6 +268,37 @@ public class QuizService {
                 "badgeTotal", badge.map(UserSubjectBadge::getTotal).orElse(0),
                 "conceptCount", concepts.size()
         );
+    }
+
+    // ─── BULK SUBJECT STATUS — replaces N×M DB calls with 2 queries ─────────────
+    public Map<String, Object> getBulkSubjectStatus(List<String> subjectIds, String userId) {
+        // Query 1: all badges for this user (one round-trip)
+        Map<String, UserSubjectBadge> badgeMap = badgeRepo.findByUserId(userId)
+                .stream().collect(Collectors.toMap(UserSubjectBadge::getSubjectId, b -> b));
+
+        // Query 2: all concept progress for this user (one round-trip)
+        Map<String, Long> progressCounts = progressRepo.findByUserId(userId)
+                .stream().collect(Collectors.groupingBy(
+                        com.example.student.model.UserConceptProgress::getSubjectId,
+                        Collectors.counting()));
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        for (String subjectId : subjectIds) {
+            UserSubjectBadge badge = badgeMap.get(subjectId);
+            // Concept counts served from Caffeine (warmed on startup, never a DB call)
+            long conceptCount = cacheService.get("concepts", "count:" + subjectId,
+                    () -> (long) conceptRepo.countBySubjectId(subjectId));
+            long completed = progressCounts.getOrDefault(subjectId, 0L);
+
+            Map<String, Object> status = new java.util.LinkedHashMap<>();
+            status.put("allConceptsMastered", conceptCount > 0 && completed >= conceptCount);
+            status.put("hasBadge",    badge != null);
+            status.put("badgeScore",  badge != null ? badge.getScore() : 0);
+            status.put("badgeTotal",  badge != null ? badge.getTotal() : 0);
+            status.put("conceptCount", (int) conceptCount);
+            result.put(subjectId, status);
+        }
+        return result;
     }
 
     public Map<String, Object> getRoadmapStatus(String roadmapId, String userId) {
