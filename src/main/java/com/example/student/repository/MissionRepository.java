@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface MissionRepository extends MongoRepository<Mission, String> {
     List<Mission> findByPublishedTrueOrderByOrderIndexAsc();
+    List<Mission> findAllByOrderByOrderIndexAsc();
 }

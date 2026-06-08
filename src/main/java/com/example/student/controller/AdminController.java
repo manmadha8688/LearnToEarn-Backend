@@ -5,6 +5,8 @@ import com.example.student.dto.AdminConceptRequest;
 import com.example.student.dto.AdminQuestionRequest;
 import com.example.student.dto.AdminRoadmapRequest;
 import com.example.student.dto.AdminSubjectRequest;
+import com.example.student.model.Mission;
+import com.example.student.model.ProblemQuestion;
 import com.example.student.service.AdminService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -170,5 +172,51 @@ public class AdminController {
     public ResponseEntity<?> deleteQuestion(@PathVariable String id) {
         adminService.deleteQuestion(id);
         return ResponseEntity.ok(Map.of("message", "Question deleted"));
+    }
+
+    // ─── MISSIONS ────────────────────────────────────────────────────────────
+
+    @GetMapping("/missions")
+    public ResponseEntity<?> getAllMissions() {
+        return ResponseEntity.ok(adminService.getAllMissions());
+    }
+
+    @PostMapping("/missions")
+    public ResponseEntity<?> createMission(@RequestBody Mission mission) {
+        return ResponseEntity.ok(adminService.createMission(mission));
+    }
+
+    @PutMapping("/missions/{id}")
+    public ResponseEntity<?> updateMission(@PathVariable String id, @RequestBody Mission mission) {
+        return ResponseEntity.ok(adminService.updateMission(id, mission));
+    }
+
+    @DeleteMapping("/missions/{id}")
+    public ResponseEntity<?> deleteMission(@PathVariable String id) {
+        adminService.deleteMission(id);
+        return ResponseEntity.ok(Map.of("message", "Mission deleted"));
+    }
+
+    // ─── PROBLEMS ────────────────────────────────────────────────────────────
+
+    @GetMapping("/problems")
+    public ResponseEntity<?> getAllProblems() {
+        return ResponseEntity.ok(adminService.getAllProblems());
+    }
+
+    @PostMapping("/problems")
+    public ResponseEntity<?> createProblem(@RequestBody ProblemQuestion problem) {
+        return ResponseEntity.ok(adminService.createProblem(problem));
+    }
+
+    @PutMapping("/problems/{id}")
+    public ResponseEntity<?> updateProblem(@PathVariable String id, @RequestBody ProblemQuestion problem) {
+        return ResponseEntity.ok(adminService.updateProblem(id, problem));
+    }
+
+    @DeleteMapping("/problems/{id}")
+    public ResponseEntity<?> deleteProblem(@PathVariable String id) {
+        adminService.deleteProblem(id);
+        return ResponseEntity.ok(Map.of("message", "Problem deleted"));
     }
 }
