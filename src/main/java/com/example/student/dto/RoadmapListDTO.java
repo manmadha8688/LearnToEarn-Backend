@@ -1,10 +1,11 @@
 package com.example.student.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data @AllArgsConstructor @NoArgsConstructor
+import java.util.List;
+
+@Data @NoArgsConstructor
 public class RoadmapListDTO {
     private String id;
     private String title;
@@ -17,4 +18,12 @@ public class RoadmapListDTO {
     private boolean enrolled;
     private boolean paused;
     private boolean allSubjectsDone;
+    // Rich info — included so the About popup is instant, no second API call needed
+    private List<String> roleTargets;
+    private String overview;
+    private String whyLearn;
+    private String forWho;
+    private List<String> prerequisites;
+    private List<String> toolsRequired;
+    private List<String> outcomes;
 }
