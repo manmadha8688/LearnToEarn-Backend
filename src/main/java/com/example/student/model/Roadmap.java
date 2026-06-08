@@ -6,6 +6,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(collection = "roadmaps")
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
@@ -29,6 +30,17 @@ public class Roadmap {
 
     @Builder.Default
     private boolean isPublished = true;
+
+    // Multiple target roles
+    private List<String> roleTargets;
+
+    // Rich info fields
+    private String overview;
+    private String whyLearn;
+    private String forWho;
+    private List<String> prerequisites;
+    private List<String> toolsRequired;
+    private List<String> outcomes;
 
     @CreatedDate
     private LocalDateTime createdAt;
