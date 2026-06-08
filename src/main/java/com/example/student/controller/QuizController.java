@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.dto.QuizSubmitRequest;
 import com.example.student.model.User;
 import com.example.student.service.QuizService;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -58,6 +59,12 @@ public class QuizController {
     public ResponseEntity<?> getSubjectStatus(@PathVariable String subjectId,
                                                @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(quizService.getSubjectStatus(subjectId, user.getId()));
+    }
+
+    @GetMapping("/subjects/bulk-status")
+    public ResponseEntity<?> getBulkSubjectStatus(@RequestParam List<String> ids,
+                                                   @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(quizService.getBulkSubjectStatus(ids, user.getId()));
     }
 
     @GetMapping("/roadmap/{roadmapId}/status")

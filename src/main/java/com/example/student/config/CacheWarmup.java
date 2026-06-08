@@ -3,6 +3,9 @@ package com.example.student.config;
 import com.example.student.model.Concept;
 import com.example.student.model.Subject;
 import com.example.student.repository.ConceptRepository;
+import com.example.student.repository.MissionRepository;
+import com.example.student.repository.ProblemRepository;
+import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.SubjectRepository;
 import com.example.student.service.CacheService;
 import org.slf4j.Logger;
@@ -14,9 +17,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * On startup: pull subjects + concepts from Redis (prod) or MongoDB (local)
- * and fill Caffeine so the very first request after a restart is sub-millisecond.
- * Wrapped in try-catch — a Redis failure never prevents the app from starting.
+ * On startup: fill Caffeine from Redis (prod) or MongoDB (local) so the
+ * very first request after a restart is sub-millisecond.
+ * Wrapped in try-catch — any failure never prevents the app from starting.
  */
 @Component
 public class CacheWarmup {
@@ -26,49 +29,96 @@ public class CacheWarmup {
     private final CacheService cacheService;
     private final SubjectRepository subjectRepository;
     private final ConceptRepository conceptRepository;
+    private final RoadmapRepository roadmapRepository;
+    private final MissionRepository missionRepository;
+    private final ProblemRepository problemRepository;
 
     public CacheWarmup(CacheService cacheService,
                        SubjectRepository subjectRepository,
-                       ConceptRepository conceptRepository) {
+                       ConceptRepository conceptRepository,
+                       RoadmapRepository roadmapRepository,
+                       MissionRepository missionRepository,
+                       ProblemRepository problemRepository) {
         this.cacheService = cacheService;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
+        this.roadmapRepository = roadmapRepository;
+        this.missionRepository = missionRepository;
+        this.problemRepository = problemRepository;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void warmup() {
         try {
             log.info("Cache warmup starting...");
-
-            List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
-            if (subjects == null || subjects.isEmpty()) {
-                log.info("Cache warmup: no subjects found, skipping.");
-                return;
-            }
-            log.info("Cache warmup: {} subjects loaded", subjects.size());
-
-            for (Subject s : subjects) {
-                final Subject subjectRef = s;
-                cacheService.get("subjects", "id:" + s.getId(), () -> subjectRef);
-
-                List<Concept> concepts = cacheService.get(
-                    "concepts", "subject:" + s.getId(),
-                    () -> conceptRepository.findBySubjectIdOrderByOrderIndex(s.getId())
-                );
-
-                if (concepts != null) {
-                    for (Concept c : concepts) {
-                        final Concept conceptRef = c;
-                        cacheService.get("concepts", "id:" + c.getId(), () -> conceptRef);
-                    }
-                    long count = concepts.size();
-                    cacheService.get("concepts", "count:" + s.getId(), () -> count);
-                }
-            }
-
+            warmSubjectsAndConcepts();
+            warmRoadmaps();
+            warmMissions();
+            warmProblems();
             log.info("Cache warmup complete.");
         } catch (Exception e) {
             log.error("Cache warmup failed — app will continue without warm cache: {}", e.getMessage());
         }
+    }
+
+    // ─── Subjects + Concepts ─────────────────────────────────────────────────
+
+    private void warmSubjectsAndConcepts() {
+        List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
+        if (subjects == null || subjects.isEmpty()) {
+            log.info("Cache warmup: no subjects found.");
+            return;
+        }
+        log.info("Cache warmup: {} subjects", subjects.size());
+
+        for (Subject s : subjects) {
+            final Subject ref = s;
+            cacheService.get("subjects", "id:" + s.getId(), () -> ref);
+
+            List<Concept> concepts = cacheService.get(
+                "concepts", "subject:" + s.getId(),
+                () -> conceptRepository.findBySubjectIdOrderByOrderIndex(s.getId())
+            );
+
+            if (concepts != null) {
+                for (Concept c : concepts) {
+                    final Concept cRef = c;
+                    cacheService.get("concepts", "id:" + c.getId(), () -> cRef);
+                }
+                long count = concepts.size();
+                cacheService.get("concepts", "count:" + s.getId(), () -> count);
+            }
+        }
+    }
+
+    // ─── Roadmaps ────────────────────────────────────────────────────────────
+
+    private void warmRoadmaps() {
+        var roadmaps = cacheService.get("roadmaps", "all", roadmapRepository::findAll);
+        int count = roadmaps == null ? 0 : roadmaps.size();
+        log.info("Cache warmup: {} roadmaps", count);
+    }
+
+    // ─── Missions ────────────────────────────────────────────────────────────
+
+    private void warmMissions() {
+        var missions = cacheService.get("missions", "all",
+                missionRepository::findByPublishedTrueOrderByOrderIndexAsc);
+        int count = missions == null ? 0 : missions.size();
+        log.info("Cache warmup: {} missions", count);
+    }
+
+    // ─── Problems ────────────────────────────────────────────────────────────
+
+    private void warmProblems() {
+        cacheService.get("problems", "all",
+                problemRepository::findAllByOrderByOrderIndexAsc);
+
+        for (String track : List.of("START_CODING", "LOGIC_BUILDING", "SKILL_UP", "INTERVIEW_PREP")) {
+            final String t = track;
+            cacheService.get("problems", "track:" + t,
+                    () -> problemRepository.findByTracksContainingOrderByOrderIndexAsc(t));
+        }
+        log.info("Cache warmup: problems warmed for all 4 tracks");
     }
 }
