@@ -4,6 +4,7 @@ import com.example.student.dto.*;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.*;
 import com.example.student.repository.*;
+import com.example.student.repository.MissionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,8 @@ public class AdminService {
     private final UserSubjectBadgeRepository badgeRepository;
     private final UserRoadmapEnrollmentRepository enrollmentRepository;
     private final CacheService cacheService;
+    private final MissionRepository missionRepository;
+    private final ProblemRepository problemRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -39,7 +42,9 @@ public class AdminService {
                         QuizAttemptRepository quizAttemptRepository,
                         UserSubjectBadgeRepository badgeRepository,
                         UserRoadmapEnrollmentRepository enrollmentRepository,
-                        CacheService cacheService) {
+                        CacheService cacheService,
+                        MissionRepository missionRepository,
+                        ProblemRepository problemRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -51,6 +56,8 @@ public class AdminService {
         this.badgeRepository = badgeRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.cacheService = cacheService;
+        this.missionRepository = missionRepository;
+        this.problemRepository = problemRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -437,6 +444,84 @@ public class AdminService {
         if (!questionRepository.existsById(id))
             throw new ResourceNotFoundException("Question not found");
         questionRepository.deleteById(id);
+    }
+
+    // ─── MISSIONS ────────────────────────────────────────────────────────────
+
+    public List<Mission> getAllMissions() {
+        return missionRepository.findAllByOrderByOrderIndexAsc();
+    }
+
+    public Mission createMission(Mission mission) {
+        return missionRepository.save(mission);
+    }
+
+    public Mission updateMission(String id, Mission updates) {
+        Mission m = missionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Mission not found"));
+        m.setTitle(updates.getTitle());
+        m.setMissionBrief(updates.getMissionBrief());
+        m.setRank(updates.getRank());
+        m.setTechStack(updates.getTechStack());
+        m.setEstimatedHours(updates.getEstimatedHours());
+        m.setSubjectIds(updates.getSubjectIds());
+        m.setSubjectTitles(updates.getSubjectTitles());
+        m.setObjectives(updates.getObjectives());
+        m.setBonusObjectives(updates.getBonusObjectives());
+        m.setHints(updates.getHints());
+        m.setApproachSteps(updates.getApproachSteps());
+        m.setPublished(updates.isPublished());
+        m.setOrderIndex(updates.getOrderIndex());
+        return missionRepository.save(m);
+    }
+
+    // ─── PROBLEMS ────────────────────────────────────────────────────────────
+
+    public List<ProblemQuestion> getAllProblems() {
+        return problemRepository.findAllByOrderByOrderIndexAsc();
+    }
+
+    public ProblemQuestion createProblem(ProblemQuestion problem) {
+        return problemRepository.save(problem);
+    }
+
+    public ProblemQuestion updateProblem(String id, ProblemQuestion updates) {
+        ProblemQuestion p = problemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Problem not found"));
+        p.setTracks(updates.getTracks());
+        p.setTopics(updates.getTopics());
+        p.setCategory(updates.getCategory());
+        p.setLevel(updates.getLevel());
+        p.setType(updates.getType());
+        p.setTitle(updates.getTitle());
+        p.setDescription(updates.getDescription());
+        p.setInputFormat(updates.getInputFormat());
+        p.setOutputFormat(updates.getOutputFormat());
+        p.setSampleInput(updates.getSampleInput());
+        p.setSampleOutput(updates.getSampleOutput());
+        p.setConstraints(updates.getConstraints());
+        p.setCodeSnippet(updates.getCodeSnippet());
+        p.setHints(updates.getHints());
+        p.setApproach(updates.getApproach());
+        p.setSolutions(updates.getSolutions());
+        p.setExplanation(updates.getExplanation());
+        p.setInterviewTip(updates.getInterviewTip());
+        p.setIsInterview(updates.getIsInterview());
+        p.setCompaniesThatAsk(updates.getCompaniesThatAsk());
+        p.setOrderIndex(updates.getOrderIndex());
+        return problemRepository.save(p);
+    }
+
+    public void deleteProblem(String id) {
+        if (!problemRepository.existsById(id))
+            throw new ResourceNotFoundException("Problem not found");
+        problemRepository.deleteById(id);
+    }
+
+    public void deleteMission(String id) {
+        if (!missionRepository.existsById(id))
+            throw new ResourceNotFoundException("Mission not found");
+        missionRepository.deleteById(id);
     }
 
     public RoadmapSubject reorderSubjectInRoadmap(String roadmapId, String subjectId, int newOrderIndex) {
