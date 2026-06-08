@@ -1,8 +1,10 @@
 package com.example.student.config;
 
 import com.example.student.model.ProblemQuestion;
+import com.example.student.model.Roadmap;
 import com.example.student.model.User;
 import com.example.student.repository.ProblemRepository;
+import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,17 +18,21 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ProblemRepository problemRepository;
+    private final RoadmapRepository roadmapRepository;
 
     public DataSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                      ProblemRepository problemRepository) {
+                      ProblemRepository problemRepository,
+                      RoadmapRepository roadmapRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.problemRepository = problemRepository;
+        this.roadmapRepository = roadmapRepository;
     }
 
     @Override
     public void run(String... args) {
         seedAdmin();
+        seedRoadmapRichInfo();
         if (problemRepository.count() < 10) {
             problemRepository.deleteAll();
             seedProblems();
@@ -1225,5 +1231,88 @@ public class DataSeeder implements CommandLineRunner {
             ));
             all.add(p);
         }
+    }
+
+    // ─── Roadmap Rich Info ────────────────────────────────────────────────────
+    // Patches existing roadmaps with overview/tools/outcomes — never creates/deletes
+    private void seedRoadmapRichInfo() {
+        roadmapRepository.findAll().forEach(r -> {
+            if (r.getRoleTargets() != null && !r.getRoleTargets().isEmpty()) return; // already seeded
+
+            boolean changed = false;
+            String t = r.getTitle() != null ? r.getTitle().toLowerCase() : "";
+
+            if (t.contains("python")) {
+                r.setRoleTargets(List.of(
+                    "Python Full Stack Developer",
+                    "Python Backend Developer",
+                    "Django / Flask Developer",
+                    "API Developer",
+                    "Software Engineer — Python"
+                ));
+                r.setOverview("A complete path from Python basics to deploying full-stack web applications. You will learn Python programming, web frameworks, databases, REST APIs, and cloud deployment — everything needed to become a Python full-stack developer.");
+                r.setWhyLearn("Python is the most in-demand language in 2024. Used in web development, data science, AI, and automation. Companies like Google, Instagram, and Netflix run on Python. One language opens multiple career doors.");
+                r.setForWho("Students who want to build web applications using Python. Ideal for freshers targeting backend or full-stack roles in product and service companies.");
+                r.setPrerequisites(List.of(
+                    "Basic computer usage",
+                    "Understanding of how the internet works",
+                    "Basic math and logical thinking"
+                ));
+                r.setToolsRequired(List.of(
+                    "VS Code",
+                    "Python 3.10+",
+                    "Git and GitHub",
+                    "Postman (API testing)",
+                    "MySQL or PostgreSQL"
+                ));
+                r.setOutcomes(List.of(
+                    "Build full-stack Python web applications",
+                    "Work with relational and non-relational databases",
+                    "Create and consume REST APIs",
+                    "Write clean, production-ready Python code",
+                    "Deploy applications to cloud platforms",
+                    "Clear Python developer interviews"
+                ));
+                changed = true;
+            } else if (t.contains("java")) {
+                r.setRoleTargets(List.of(
+                    "Java Full Stack Developer",
+                    "Java Backend Developer",
+                    "Spring Boot Developer",
+                    "Software Engineer — Java",
+                    "Enterprise Java Developer"
+                ));
+                r.setOverview("A structured path from Java core concepts to building enterprise-grade full-stack applications. Covers Java, Spring Boot, databases, and deployment — the stack used by TCS, Infosys, Wipro, and most Indian IT companies.");
+                r.setWhyLearn("Java is the backbone of enterprise software in India. TCS, Infosys, Wipro, Capgemini, and almost all service-based companies use Java. Spring Boot is the number one backend framework in enterprise. Mastering this stack opens doors to lakhs of openings.");
+                r.setForWho("Students targeting service-based companies (TCS, Infosys, Wipro, Capgemini) or product companies using Java. Perfect for freshers wanting a strong, stable, and high-paying career in software.");
+                r.setPrerequisites(List.of(
+                    "Basic programming knowledge (any language)",
+                    "Understanding of OOP concepts",
+                    "HTML and CSS basics"
+                ));
+                r.setToolsRequired(List.of(
+                    "VS Code or IntelliJ IDEA",
+                    "JDK 17+",
+                    "Maven or Gradle",
+                    "Git and GitHub",
+                    "Postman",
+                    "MySQL Workbench"
+                ));
+                r.setOutcomes(List.of(
+                    "Build enterprise Java applications with Spring Boot",
+                    "Design and work with relational databases",
+                    "Create secure REST APIs with JWT authentication",
+                    "Write unit and integration tests",
+                    "Deploy applications to cloud platforms",
+                    "Clear Java developer interviews at major companies"
+                ));
+                changed = true;
+            }
+
+            if (changed) {
+                roadmapRepository.save(r);
+                System.out.println("✅ Roadmap rich info seeded — " + r.getTitle());
+            }
+        });
     }
 }

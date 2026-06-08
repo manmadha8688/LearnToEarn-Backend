@@ -86,9 +86,29 @@ public class RoadmapService {
         boolean enrolled = enr.isPresent();
         boolean paused   = enr.map(UserRoadmapEnrollment::isPaused).orElse(false);
 
-        return new RoadmapDetailDTO(roadmap.getId(), roadmap.getTitle(), roadmap.getDescription(),
-                roadmap.getIcon(), roadmap.getColor(), subjects, totalSubjects, completedSubjects,
-                Math.round(overall * 10) / 10.0, enrolled, paused);
+        RoadmapDetailDTO dto = new RoadmapDetailDTO();
+        dto.setId(roadmap.getId());
+        dto.setTitle(roadmap.getTitle());
+        dto.setDescription(roadmap.getDescription());
+        dto.setIcon(roadmap.getIcon());
+        dto.setColor(roadmap.getColor());
+        dto.setSubjects(subjects);
+        dto.setTotalSubjects(totalSubjects);
+        dto.setCompletedSubjects(completedSubjects);
+        dto.setOverallPercentage(Math.round(overall * 10) / 10.0);
+        dto.setEnrolled(enrolled);
+        dto.setPaused(paused);
+        dto.setEstimatedWeeks(roadmap.getEstimatedWeeks());
+        dto.setRoleTarget(roadmap.getRoleTarget());
+        // Multiple roles + Rich info
+        dto.setRoleTargets(roadmap.getRoleTargets());
+        dto.setOverview(roadmap.getOverview());
+        dto.setWhyLearn(roadmap.getWhyLearn());
+        dto.setForWho(roadmap.getForWho());
+        dto.setPrerequisites(roadmap.getPrerequisites());
+        dto.setToolsRequired(roadmap.getToolsRequired());
+        dto.setOutcomes(roadmap.getOutcomes());
+        return dto;
     }
 
     public void enroll(String roadmapId, String userId) {
