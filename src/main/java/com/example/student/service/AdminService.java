@@ -404,11 +404,14 @@ public class AdminService {
         rs.setSubjectId(subjectId);
         rs.setSubject(subject);
         rs.setOrderIndex(orderIndex);
-        return roadmapSubjectRepository.save(rs);
+        RoadmapSubject saved = roadmapSubjectRepository.save(rs);
+        cacheService.evictAll("roadmaps");
+        return saved;
     }
 
     public void removeSubjectFromRoadmap(String roadmapId, String subjectId) {
         roadmapSubjectRepository.deleteByRoadmapIdAndSubjectId(roadmapId, subjectId);
+        cacheService.evictAll("roadmaps");
     }
 
     // ─── QUESTIONS ───────────────────────────────────────────────────────────
@@ -453,7 +456,9 @@ public class AdminService {
     }
 
     public Mission createMission(Mission mission) {
-        return missionRepository.save(mission);
+        Mission saved = missionRepository.save(mission);
+        cacheService.evictAll("missions");
+        return saved;
     }
 
     public Mission updateMission(String id, Mission updates) {
@@ -472,7 +477,10 @@ public class AdminService {
         m.setApproachSteps(updates.getApproachSteps());
         m.setPublished(updates.isPublished());
         m.setOrderIndex(updates.getOrderIndex());
-        return missionRepository.save(m);
+        Mission saved = missionRepository.save(m);
+        cacheService.evict("missions", "all");
+        cacheService.evict("missions", "id:" + id);
+        return saved;
     }
 
     // ─── PROBLEMS ────────────────────────────────────────────────────────────
@@ -482,7 +490,9 @@ public class AdminService {
     }
 
     public ProblemQuestion createProblem(ProblemQuestion problem) {
-        return problemRepository.save(problem);
+        ProblemQuestion saved = problemRepository.save(problem);
+        cacheService.evictAll("problems");
+        return saved;
     }
 
     public ProblemQuestion updateProblem(String id, ProblemQuestion updates) {
@@ -509,19 +519,28 @@ public class AdminService {
         p.setIsInterview(updates.getIsInterview());
         p.setCompaniesThatAsk(updates.getCompaniesThatAsk());
         p.setOrderIndex(updates.getOrderIndex());
-        return problemRepository.save(p);
+        ProblemQuestion saved = problemRepository.save(p);
+        cacheService.evict("problems", "all");
+        cacheService.evict("problems", "track:START_CODING");
+        cacheService.evict("problems", "track:LOGIC_BUILDING");
+        cacheService.evict("problems", "track:SKILL_UP");
+        cacheService.evict("problems", "track:INTERVIEW_PREP");
+        cacheService.evict("problems", "id:" + id);
+        return saved;
     }
 
     public void deleteProblem(String id) {
         if (!problemRepository.existsById(id))
             throw new ResourceNotFoundException("Problem not found");
         problemRepository.deleteById(id);
+        cacheService.evictAll("problems");
     }
 
     public void deleteMission(String id) {
         if (!missionRepository.existsById(id))
             throw new ResourceNotFoundException("Mission not found");
         missionRepository.deleteById(id);
+        cacheService.evictAll("missions");
     }
 
     public RoadmapSubject reorderSubjectInRoadmap(String roadmapId, String subjectId, int newOrderIndex) {
@@ -548,6 +567,8 @@ public class AdminService {
             rs.setOrderIndex(newOrderIndex);
         }
 
-        return roadmapSubjectRepository.save(rs);
+        RoadmapSubject saved = roadmapSubjectRepository.save(rs);
+        cacheService.evictAll("roadmaps");
+        return saved;
     }
 }
