@@ -19,6 +19,19 @@ public class RoadmapDetailDTO {
     private double overallPercentage;
     private boolean enrolled;
     private boolean paused;
+    private int estimatedWeeks;
+    private String roleTarget;
+
+    // Multiple target roles
+    private List<String> roleTargets;
+
+    // Rich info
+    private String overview;
+    private String whyLearn;
+    private String forWho;
+    private List<String> prerequisites;
+    private List<String> toolsRequired;
+    private List<String> outcomes;
 
     @Data @AllArgsConstructor @NoArgsConstructor
     public static class SubjectProgress {

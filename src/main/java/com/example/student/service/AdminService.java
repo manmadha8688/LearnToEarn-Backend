@@ -351,6 +351,13 @@ public class AdminService {
         r.setColor(req.getColor() != null ? req.getColor() : "#7C3AED");
         r.setEstimatedWeeks(req.getEstimatedWeeks() > 0 ? req.getEstimatedWeeks() : 12);
         r.setPublished(true);
+        r.setOverview(req.getOverview());
+        r.setWhyLearn(req.getWhyLearn());
+        r.setForWho(req.getForWho());
+        r.setPrerequisites(req.getPrerequisites());
+        r.setToolsRequired(req.getToolsRequired());
+        r.setOutcomes(req.getOutcomes());
+        r.setRoleTargets(req.getRoleTargets());
         Roadmap saved = roadmapRepository.save(r);
         cacheService.evictAll("roadmaps");
         return saved;
@@ -365,6 +372,13 @@ public class AdminService {
         if (req.getIcon() != null) r.setIcon(req.getIcon());
         if (req.getColor() != null) r.setColor(req.getColor());
         if (req.getEstimatedWeeks() > 0) r.setEstimatedWeeks(req.getEstimatedWeeks());
+        if (req.getOverview() != null)      r.setOverview(req.getOverview());
+        if (req.getWhyLearn() != null)      r.setWhyLearn(req.getWhyLearn());
+        if (req.getForWho() != null)        r.setForWho(req.getForWho());
+        if (req.getPrerequisites() != null) r.setPrerequisites(req.getPrerequisites());
+        if (req.getToolsRequired() != null) r.setToolsRequired(req.getToolsRequired());
+        if (req.getOutcomes() != null)      r.setOutcomes(req.getOutcomes());
+        if (req.getRoleTargets() != null)   r.setRoleTargets(req.getRoleTargets());
         Roadmap saved = roadmapRepository.save(r);
         cacheService.evictAll("roadmaps");
         return saved;
