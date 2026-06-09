@@ -276,6 +276,7 @@ public class AdminService {
         Concept c = conceptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Concept not found"));
 
+        if (req.getSubjectId() != null) c.setSubjectId(req.getSubjectId());
         if (req.getTitle() != null) c.setTitle(req.getTitle());
         if (req.getWhatItIs() != null) c.setWhatItIs(req.getWhatItIs());
         if (req.getWhyItMatters() != null) c.setWhyItMatters(req.getWhyItMatters());
