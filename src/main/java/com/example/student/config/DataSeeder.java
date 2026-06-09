@@ -1,9 +1,11 @@
 package com.example.student.config;
 
 import com.example.student.model.ProblemQuestion;
+import com.example.student.model.Question;
 import com.example.student.model.Roadmap;
 import com.example.student.model.User;
 import com.example.student.repository.ProblemRepository;
+import com.example.student.repository.QuestionRepository;
 import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -19,27 +21,44 @@ public class DataSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final ProblemRepository problemRepository;
     private final RoadmapRepository roadmapRepository;
+    private final QuestionRepository questionRepository;
 
     public DataSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder,
                       ProblemRepository problemRepository,
-                      RoadmapRepository roadmapRepository) {
+                      RoadmapRepository roadmapRepository,
+                      QuestionRepository questionRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.problemRepository = problemRepository;
         this.roadmapRepository = roadmapRepository;
+        this.questionRepository = questionRepository;
     }
 
     @Override
     public void run(String... args) {
         seedAdmin();
+        cleanupLegacyGuests();
         seedRoadmapRichInfo();
         if (problemRepository.count() < 10) {
             problemRepository.deleteAll();
             seedProblems();
         }
+        
     }
 
     public void reconcileRichContent() { }
+
+    // ─── Guest Cleanup ───────────────────────────────────────────────────────
+    // One-time migration: delete legacy guest accounts created before activity tracking
+    private void cleanupLegacyGuests() {
+        List<User> legacyGuests = userRepository.findByRole("GUEST").stream()
+            .filter(u -> u.getLastLoginAt() == null)
+            .collect(java.util.stream.Collectors.toList());
+        if (!legacyGuests.isEmpty()) {
+            userRepository.deleteAll(legacyGuests);
+            System.out.println("[GuestCleanup] Removed " + legacyGuests.size() + " legacy guest account(s)");
+        }
+    }
 
     // ─── Admin ───────────────────────────────────────────────────────────────
     private void seedAdmin() {

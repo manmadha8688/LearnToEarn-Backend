@@ -51,24 +51,30 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         User user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setLastLoginAt(java.time.LocalDateTime.now());
+        user.setLoginCount(user.getLoginCount() + 1);
+        userRepository.save(user);
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(user.getId(), user.getFullName(), user.getEmail(), user.getRole()));
     }
 
     public AuthResponse guestLogin(String guestId) {
-        // Reuse the same guest account for this device if it still exists
+        // Reuse the same guest account for this device if it still exists (within 3-day window)
         if (guestId != null && !guestId.isBlank()) {
             java.util.Optional<User> existing = userRepository.findById(guestId);
             if (existing.isPresent() && "GUEST".equals(existing.get().getRole())) {
                 User guest = existing.get();
+                guest.setLastLoginAt(java.time.LocalDateTime.now());
+                guest.setLoginCount(guest.getLoginCount() + 1);
+                userRepository.save(guest);
                 String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole());
                 return new AuthResponse(token,
                         new AuthResponse.UserDto(guest.getId(), guest.getFullName(), guest.getEmail(), guest.getRole()));
             }
         }
 
-        // First visit on this device — create a new guest account
+        // Guest account not found or expired — create a new one
         long ts = System.currentTimeMillis();
         String guestEmail = "guest_" + ts + "@guest.local";
         String guestName  = "Guest#" + ((ts % 9000) + 1000);
@@ -80,11 +86,20 @@ public class AuthService {
         guest.setRole("GUEST");
         guest.setAvatarColor("#64748B");
         guest.setIsActive(true);
+        guest.setLastLoginAt(java.time.LocalDateTime.now());
+        guest.setLoginCount(1);
 
         User saved = userRepository.save(guest);
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
+    }
+
+    public void logout(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            user.setLastLogoutAt(java.time.LocalDateTime.now());
+            userRepository.save(user);
+        });
     }
 
     public User getMe(String email) {

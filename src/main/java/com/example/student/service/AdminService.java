@@ -101,16 +101,21 @@ public class AdminService {
                 : userRepository.findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
                         search, search, pageable);
 
-        return users.map(u -> Map.<String, Object>of(
-                "id", u.getId(),
-                "fullName", u.getFullName(),
-                "email", u.getEmail(),
-                "role", u.getRole(),
-                "collegeName", u.getCollegeName() != null ? u.getCollegeName() : "",
-                "avatarColor", u.getAvatarColor() != null ? u.getAvatarColor() : "#4F46E5",
-                "isActive", u.getIsActive() != null ? u.getIsActive() : true,
-                "createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : ""
-        ));
+        return users.map(u -> {
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id",           u.getId());
+            m.put("fullName",     u.getFullName());
+            m.put("email",        u.getEmail());
+            m.put("role",         u.getRole());
+            m.put("collegeName",  u.getCollegeName() != null ? u.getCollegeName() : "");
+            m.put("avatarColor",  u.getAvatarColor() != null ? u.getAvatarColor() : "#4F46E5");
+            m.put("isActive",     u.getIsActive() != null ? u.getIsActive() : true);
+            m.put("createdAt",    u.getCreatedAt() != null ? u.getCreatedAt().toString() : "");
+            m.put("lastLoginAt",  u.getLastLoginAt() != null ? u.getLastLoginAt().toString() : null);
+            m.put("lastLogoutAt", u.getLastLogoutAt() != null ? u.getLastLogoutAt().toString() : null);
+            m.put("loginCount",   u.getLoginCount());
+            return m;
+        });
     }
 
     public Map<String, Object> getUserProgress(String userId) {
@@ -481,6 +486,8 @@ public class AdminService {
         m.setTitle(updates.getTitle());
         m.setMissionBrief(updates.getMissionBrief());
         m.setRank(updates.getRank());
+        m.setCategory(updates.getCategory());
+        m.setTargetRoles(updates.getTargetRoles());
         m.setTechStack(updates.getTechStack());
         m.setEstimatedHours(updates.getEstimatedHours());
         m.setSubjectIds(updates.getSubjectIds());
