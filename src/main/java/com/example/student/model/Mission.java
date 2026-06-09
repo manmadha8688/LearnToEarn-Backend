@@ -31,6 +31,12 @@ public class Mission {
     private List<String> hints;
     private List<String> approachSteps;
 
+    // Category: SUBJECT_PRACTICE | REAL_WORLD | ACADEMIC | ROLE_BASED
+    private String category;
+
+    // Only used when category = ROLE_BASED
+    private List<String> targetRoles;
+
     @Builder.Default
     private boolean published = true;
 

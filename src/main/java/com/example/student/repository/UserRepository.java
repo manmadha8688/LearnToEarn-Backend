@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,8 @@ public interface UserRepository extends MongoRepository<User, String> {
     List<User> findTop5ByOrderByCreatedAtDesc();
     Page<User> findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
             String name, String email, Pageable pageable);
+
+    // Guest management
+    List<User> findByRole(String role);
+    List<User> findByRoleAndCreatedAtBefore(String role, LocalDateTime cutoff);
 }

@@ -39,19 +39,30 @@ public class AuthController {
         return ResponseEntity.ok(authService.guestLogin(guestId));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal User user) {
+        if (user != null) {
+            authService.logout(user.getEmail());
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal User user) {
         Map<String, Object> res = new LinkedHashMap<>();
-        res.put("id",          user.getId());
-        res.put("fullName",    user.getFullName());
-        res.put("email",       user.getEmail());
-        res.put("role",        user.getRole());
-        res.put("collegeName", user.getCollegeName() != null ? user.getCollegeName() : "");
-        res.put("avatarColor", user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
-        res.put("xp",          user.getXp());
-        res.put("level",       user.getLevel());
-        res.put("rank",        user.getRank() != null ? user.getRank() : "E");
-        res.put("createdAt",   user.getCreatedAt() != null ? user.getCreatedAt().toString() : "");
+        res.put("id",            user.getId());
+        res.put("fullName",      user.getFullName());
+        res.put("email",         user.getEmail());
+        res.put("role",          user.getRole());
+        res.put("collegeName",   user.getCollegeName() != null ? user.getCollegeName() : "");
+        res.put("avatarColor",   user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
+        res.put("xp",            user.getXp());
+        res.put("level",         user.getLevel());
+        res.put("rank",          user.getRank() != null ? user.getRank() : "E");
+        res.put("createdAt",     user.getCreatedAt() != null ? user.getCreatedAt().toString() : "");
+        res.put("lastLoginAt",   user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
+        res.put("lastLogoutAt",  user.getLastLogoutAt() != null ? user.getLastLogoutAt().toString() : null);
+        res.put("loginCount",    user.getLoginCount());
         return ResponseEntity.ok(res);
     }
 }

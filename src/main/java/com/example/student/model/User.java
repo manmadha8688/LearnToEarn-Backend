@@ -52,6 +52,13 @@ public class User implements UserDetails {
     @CreatedDate
     private LocalDateTime createdAt;
 
+    // ── Activity tracking ─────────────────────────────────
+    private LocalDateTime lastLoginAt;
+    private LocalDateTime lastLogoutAt;
+
+    @Builder.Default
+    private int loginCount = 0;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
