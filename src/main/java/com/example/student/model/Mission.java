@@ -31,6 +31,12 @@ public class Mission {
     private List<String> hints;
     private List<String> approachSteps;
 
+    // Guidance fields
+    private String learningOutcome;
+    private List<String> prerequisites;
+    private List<String> conceptsCovered;
+    private List<String> commonMistakes;
+
     // Category: SUBJECT_PRACTICE | REAL_WORLD | ACADEMIC | ROLE_BASED
     private String category;
 

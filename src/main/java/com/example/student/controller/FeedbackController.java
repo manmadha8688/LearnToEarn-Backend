@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/feedback")
@@ -28,9 +29,11 @@ public class FeedbackController {
         return ResponseEntity.ok(Map.of("message", "Feedback received. Thank you!", "id", saved.getId()));
     }
 
-    // Admin only — view all feedback
+    // Admin only — view paginated feedback
     @GetMapping
-    public ResponseEntity<?> getAll() {
-        return ResponseEntity.ok(feedbackService.getAll());
+    public ResponseEntity<?> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size) {
+        return ResponseEntity.ok(feedbackService.getPaged(page, size));
     }
 }
