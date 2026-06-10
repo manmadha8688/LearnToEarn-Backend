@@ -31,6 +31,7 @@ public class AdminService {
     private final CacheService cacheService;
     private final MissionRepository missionRepository;
     private final ProblemRepository problemRepository;
+    private final ReportRepository reportRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -44,7 +45,8 @@ public class AdminService {
                         UserRoadmapEnrollmentRepository enrollmentRepository,
                         CacheService cacheService,
                         MissionRepository missionRepository,
-                        ProblemRepository problemRepository) {
+                        ProblemRepository problemRepository,
+                        ReportRepository reportRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -58,6 +60,7 @@ public class AdminService {
         this.cacheService = cacheService;
         this.missionRepository = missionRepository;
         this.problemRepository = problemRepository;
+        this.reportRepository = reportRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -88,8 +91,14 @@ public class AdminService {
                         "completionCount", r.getCount()
                 )).collect(Collectors.toList());
 
+        long totalMissions  = missionRepository.count();
+        long totalProblems  = problemRepository.count();
+        long totalQuestions = questionRepository.count();
+        long totalReports   = reportRepository.count();
+
         return new AdminStatsDTO(totalUsers, totalStudents, totalGuests, totalSubjects,
-                totalConcepts, totalRoadmaps, recentUsers, topSubjects);
+                totalConcepts, totalRoadmaps, totalMissions, totalProblems, totalQuestions,
+                totalReports, recentUsers, topSubjects);
     }
 
     // ─── USERS ───────────────────────────────────────────────────────────────
@@ -497,6 +506,10 @@ public class AdminService {
         m.setBonusObjectives(updates.getBonusObjectives());
         m.setHints(updates.getHints());
         m.setApproachSteps(updates.getApproachSteps());
+        m.setLearningOutcome(updates.getLearningOutcome());
+        m.setPrerequisites(updates.getPrerequisites());
+        m.setConceptsCovered(updates.getConceptsCovered());
+        m.setCommonMistakes(updates.getCommonMistakes());
         m.setPublished(updates.isPublished());
         m.setOrderIndex(updates.getOrderIndex());
         Mission saved = missionRepository.save(m);

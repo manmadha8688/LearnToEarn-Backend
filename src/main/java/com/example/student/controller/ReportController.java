@@ -34,13 +34,16 @@ public class ReportController {
         return ResponseEntity.ok(Map.of("message", "Report submitted. Thank you!"));
     }
 
-    // Admin — list all reports
+    // Admin — list reports, optionally filtered by status
     @GetMapping
     public ResponseEntity<?> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Report> reports = reportRepository.findAllByOrderByCreatedAtDesc(
-                PageRequest.of(page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status) {
+        PageRequest pr = PageRequest.of(page, size);
+        Page<Report> reports = (status != null && !status.isBlank())
+                ? reportRepository.findByStatusOrderByCreatedAtDesc(status, pr)
+                : reportRepository.findAllByOrderByCreatedAtDesc(pr);
         return ResponseEntity.ok(reports);
     }
 
