@@ -2,6 +2,8 @@ package com.example.student.service;
 
 import com.example.student.model.Feedback;
 import com.example.student.repository.FeedbackRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -39,5 +41,9 @@ public class FeedbackService {
 
     public List<Feedback> getAll() {
         return feedbackRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public Page<Feedback> getPaged(int page, int size) {
+        return feedbackRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
     }
 }

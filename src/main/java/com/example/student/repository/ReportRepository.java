@@ -7,5 +7,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface ReportRepository extends MongoRepository<Report, String> {
     Page<Report> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<Report> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     long countByStatus(String status);
 }
