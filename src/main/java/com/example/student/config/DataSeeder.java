@@ -39,6 +39,7 @@ public class DataSeeder implements CommandLineRunner {
         this.conceptRepository = conceptRepository;
     }
 
+
     @Override
     public void run(String... args) {
         seedAdmin();
