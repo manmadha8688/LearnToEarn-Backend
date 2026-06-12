@@ -544,6 +544,10 @@ public class AdminService {
         p.setOutputFormat(updates.getOutputFormat());
         p.setSampleInput(updates.getSampleInput());
         p.setSampleOutput(updates.getSampleOutput());
+        p.setExample1Explanation(updates.getExample1Explanation());
+        p.setSampleInput2(updates.getSampleInput2());
+        p.setSampleOutput2(updates.getSampleOutput2());
+        p.setExample2Explanation(updates.getExample2Explanation());
         p.setConstraints(updates.getConstraints());
         p.setCodeSnippet(updates.getCodeSnippet());
         p.setHints(updates.getHints());
@@ -560,6 +564,7 @@ public class AdminService {
         cacheService.evict("problems", "track:LOGIC_BUILDING");
         cacheService.evict("problems", "track:SKILL_UP");
         cacheService.evict("problems", "track:INTERVIEW_PREP");
+        cacheService.evict("problems", "track:SCENARIO_CODING");
         cacheService.evict("problems", "id:" + id);
         return saved;
     }

@@ -62,5 +62,6 @@ public class Concept {
         private String description;
         private String code;
         private String output;
+        private String demoHtml;
     }
 }
