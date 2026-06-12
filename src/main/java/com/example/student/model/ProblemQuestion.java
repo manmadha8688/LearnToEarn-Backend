@@ -33,6 +33,10 @@ public class ProblemQuestion {
     private String outputFormat;
     private String sampleInput;
     private String sampleOutput;
+    private String example1Explanation;   // explains why Example 1 produces that output
+    private String sampleInput2;
+    private String sampleOutput2;
+    private String example2Explanation;   // explains why Example 2 produces that output
     private String constraints;
     private String codeSnippet;
 
