@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class StudentBackEndApplication {
 
 	public static void main(String[] args) {
+		// Force IST timezone so LocalDateTime is always stored/read as IST on any server
+		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
 		SpringApplication.run(StudentBackEndApplication.class, args);
 			}
 
