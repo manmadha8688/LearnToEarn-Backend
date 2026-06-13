@@ -51,7 +51,7 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         User user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setLastLoginAt(java.time.LocalDateTime.now());
+        user.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
         user.setLoginCount(user.getLoginCount() + 1);
         userRepository.save(user);
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
@@ -65,7 +65,7 @@ public class AuthService {
             java.util.Optional<User> existing = userRepository.findById(guestId);
             if (existing.isPresent() && "GUEST".equals(existing.get().getRole())) {
                 User guest = existing.get();
-                guest.setLastLoginAt(java.time.LocalDateTime.now());
+                guest.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
                 guest.setLoginCount(guest.getLoginCount() + 1);
                 userRepository.save(guest);
                 String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole());
@@ -86,7 +86,7 @@ public class AuthService {
         guest.setRole("GUEST");
         guest.setAvatarColor("#64748B");
         guest.setIsActive(true);
-        guest.setLastLoginAt(java.time.LocalDateTime.now());
+        guest.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
         guest.setLoginCount(1);
 
         User saved = userRepository.save(guest);
@@ -97,7 +97,7 @@ public class AuthService {
 
     public void logout(String email) {
         userRepository.findByEmail(email).ifPresent(user -> {
-            user.setLastLogoutAt(java.time.LocalDateTime.now());
+            user.setLastLogoutAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
             userRepository.save(user);
         });
     }
