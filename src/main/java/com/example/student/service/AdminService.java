@@ -32,6 +32,7 @@ public class AdminService {
     private final MissionRepository missionRepository;
     private final ProblemRepository problemRepository;
     private final ReportRepository reportRepository;
+    private final WalkInRepository walkInRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -46,7 +47,8 @@ public class AdminService {
                         CacheService cacheService,
                         MissionRepository missionRepository,
                         ProblemRepository problemRepository,
-                        ReportRepository reportRepository) {
+                        ReportRepository reportRepository,
+                        WalkInRepository walkInRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -61,6 +63,7 @@ public class AdminService {
         this.missionRepository = missionRepository;
         this.problemRepository = problemRepository;
         this.reportRepository = reportRepository;
+        this.walkInRepository = walkInRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -95,10 +98,11 @@ public class AdminService {
         long totalProblems  = problemRepository.count();
         long totalQuestions = questionRepository.count();
         long totalReports   = reportRepository.count();
+        long totalWalkIns   = walkInRepository.count();
 
         return new AdminStatsDTO(totalUsers, totalStudents, totalGuests, totalSubjects,
                 totalConcepts, totalRoadmaps, totalMissions, totalProblems, totalQuestions,
-                totalReports, recentUsers, topSubjects);
+                totalReports, totalWalkIns, recentUsers, topSubjects);
     }
 
     // ─── USERS ───────────────────────────────────────────────────────────────

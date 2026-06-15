@@ -10,4 +10,5 @@ public interface WalkInRepository extends MongoRepository<WalkIn, String> {
     List<WalkIn> findByStatusOrderByWalkInDateAsc(String status);
     List<WalkIn> findByCityIgnoreCaseAndStatus(String city, String status);
     List<WalkIn> findByPostedByIdOrderByCreatedAtDesc(String postedById);
+    long countByStatus(String status);
 }

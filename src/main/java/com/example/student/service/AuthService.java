@@ -18,22 +18,27 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final OtpService otpService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtUtil jwtUtil, AuthenticationManager authenticationManager) {
+                       JwtUtil jwtUtil, AuthenticationManager authenticationManager,
+                       OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
+        this.otpService = otpService;
     }
 
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.getEmail())) {
+        String email = req.getEmail().trim().toLowerCase();
+        if (!otpService.isVerified(email))
+            throw new RuntimeException("Email not verified. Please verify your email with OTP first.");
+        if (userRepository.existsByEmail(email))
             throw new RuntimeException("Email already registered");
-        }
         User user = new User();
         user.setFullName(req.getFullName());
-        user.setEmail(req.getEmail());
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setRole("STUDENT");
         user.setCollegeName(req.getCollegeName());
@@ -41,6 +46,7 @@ public class AuthService {
         user.setIsActive(true);
 
         User saved = userRepository.save(user);
+        otpService.clear(email); // clean up OTP entry after successful registration
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
