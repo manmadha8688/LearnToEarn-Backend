@@ -3,6 +3,7 @@ package com.example.student.service;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -106,7 +107,8 @@ public class OtpService {
     }
 
     // ── Email ────────────────────────────────────────────────────────
-    private void sendEmail(String to, String otp) {
+    @Async
+    void sendEmail(String to, String otp) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
