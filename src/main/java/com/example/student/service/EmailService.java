@@ -25,14 +25,25 @@ public class EmailService {
             helper.setFrom("manmadhajayamangala777@gmail.com");
             helper.setText(buildHtml(otp), true);
             mailSender.send(msg);
-            System.out.println("[EmailService] OTP sent successfully to " + to);
+            System.out.println("[EmailService] OTP sent to " + to);
         } catch (Exception e) {
-            System.err.println("[EmailService] FAILED to send OTP to " + to);
-            System.err.println("[EmailService] Error type: " + e.getClass().getName());
-            System.err.println("[EmailService] Error message: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("[EmailService] Caused by: " + e.getCause().getMessage());
-            }
+            System.err.println("[EmailService] FAILED: " + e.getClass().getName() + " — " + e.getMessage());
+        }
+    }
+
+    // Synchronous — used only for diagnostics
+    public String testMailConnection(String to) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
+            helper.setTo(to);
+            helper.setSubject("LearnToEarn — Mail Test");
+            helper.setFrom("manmadhajayamangala777@gmail.com");
+            helper.setText("<p>Mail config is working!</p>", true);
+            mailSender.send(msg);
+            return "SUCCESS";
+        } catch (Exception e) {
+            return "FAILED: " + e.getClass().getSimpleName() + " — " + e.getMessage();
         }
     }
 
