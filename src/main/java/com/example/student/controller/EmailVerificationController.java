@@ -1,7 +1,6 @@
 package com.example.student.controller;
 
 import com.example.student.repository.UserRepository;
-import com.example.student.service.EmailService;
 import com.example.student.service.OtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -15,20 +14,12 @@ public class EmailVerificationController {
 
     private final OtpService otpService;
     private final UserRepository userRepository;
-    private final EmailService emailService;
 
-    public EmailVerificationController(OtpService otpService, UserRepository userRepository, EmailService emailService) {
+    public EmailVerificationController(OtpService otpService, UserRepository userRepository) {
         this.otpService = otpService;
         this.userRepository = userRepository;
-        this.emailService = emailService;
     }
 
-    // Diagnostic: test mail config — remove after confirming
-    @GetMapping("/test-mail")
-    public ResponseEntity<?> testMail() {
-        String result = emailService.testMailConnection("manmadhajayamangala777@gmail.com");
-        return ResponseEntity.ok(Map.of("result", result));
-    }
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> body, HttpServletRequest request) {
