@@ -1,5 +1,6 @@
 package com.example.student.controller;
 
+import com.example.student.repository.UserRepository;
 import com.example.student.service.OtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -12,9 +13,11 @@ import java.util.Map;
 public class EmailVerificationController {
 
     private final OtpService otpService;
+    private final UserRepository userRepository;
 
-    public EmailVerificationController(OtpService otpService) {
+    public EmailVerificationController(OtpService otpService, UserRepository userRepository) {
         this.otpService = otpService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/send-otp")
@@ -23,8 +26,14 @@ public class EmailVerificationController {
         if (email == null || email.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
 
+        String normalized = email.trim().toLowerCase();
+
+        // Check email exists BEFORE sending OTP
+        if (userRepository.existsByEmail(normalized))
+            return ResponseEntity.status(409).body(Map.of("error", "An account with this email already exists."));
+
         try {
-            long cooldown = otpService.sendOtp(email.trim().toLowerCase(), getClientIp(request));
+            long cooldown = otpService.sendOtp(normalized, getClientIp(request));
             if (cooldown > 0)
                 return ResponseEntity.status(429).body(Map.of(
                     "error", "Please wait before requesting another OTP.",
