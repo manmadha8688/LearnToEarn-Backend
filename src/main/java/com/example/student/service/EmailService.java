@@ -25,9 +25,14 @@ public class EmailService {
             helper.setFrom("manmadhajayamangala777@gmail.com");
             helper.setText(buildHtml(otp), true);
             mailSender.send(msg);
+            System.out.println("[EmailService] OTP sent successfully to " + to);
         } catch (Exception e) {
-            // log but don't throw — async, cannot propagate to caller
-            System.err.println("[EmailService] Failed to send OTP to " + to + ": " + e.getMessage());
+            System.err.println("[EmailService] FAILED to send OTP to " + to);
+            System.err.println("[EmailService] Error type: " + e.getClass().getName());
+            System.err.println("[EmailService] Error message: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("[EmailService] Caused by: " + e.getCause().getMessage());
+            }
         }
     }
 
