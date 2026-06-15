@@ -19,6 +19,7 @@ public class AdminStatsDTO {
     private long totalProblems;
     private long totalQuestions;
     private long totalReports;
+    private long totalWalkIns;
     private List<Map<String, Object>> recentUsers;
     private List<Map<String, Object>> topSubjects;
 }

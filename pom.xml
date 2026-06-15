@@ -60,6 +60,11 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- Two-level caching: Caffeine (L1) + Redis (L2) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
