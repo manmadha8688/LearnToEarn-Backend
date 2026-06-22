@@ -138,6 +138,8 @@ public class SubjectService {
         dto.setOrderIndex(c.getOrderIndex());
         dto.setEstimatedMinutes(c.getEstimatedMinutes());
         dto.setCompleted(done);
+        dto.setVideoUrl(c.getVideoUrl());
+        dto.setVideoTitle(c.getVideoTitle());
         return dto;
     }
 }
