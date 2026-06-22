@@ -30,4 +30,8 @@ public class ConceptDTO {
     private int orderIndex;
     private int estimatedMinutes;
     private boolean completed;
+
+    // video
+    private String videoUrl;
+    private String videoTitle;
 }

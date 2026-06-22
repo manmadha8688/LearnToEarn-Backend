@@ -37,6 +37,10 @@ public class ConceptDetailDTO {
     private NavItem prevConcept;
     private NavItem nextConcept;
 
+    // video
+    private String videoUrl;
+    private String videoTitle;
+
     @Data @AllArgsConstructor @NoArgsConstructor
     public static class NavItem {
         private String id;

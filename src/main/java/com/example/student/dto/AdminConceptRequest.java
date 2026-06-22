@@ -28,4 +28,8 @@ public class AdminConceptRequest {
     private String rank;
     private int estimatedMinutes;
     private int orderIndex;
+
+    // video
+    private String videoUrl;
+    private String videoTitle;
 }

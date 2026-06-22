@@ -85,6 +85,8 @@ public class ConceptService {
         dto.setTotalInSubject(siblings.size());
         dto.setPrevConcept(prev);
         dto.setNextConcept(next);
+        dto.setVideoUrl(concept.getVideoUrl());
+        dto.setVideoTitle(concept.getVideoTitle());
         return dto;
     }
 
@@ -118,6 +120,8 @@ public class ConceptService {
         dto.setOrderIndex(c.getOrderIndex());
         dto.setEstimatedMinutes(c.getEstimatedMinutes());
         dto.setCompleted(done);
+        dto.setVideoUrl(c.getVideoUrl());
+        dto.setVideoTitle(c.getVideoTitle());
         return dto;
     }
 }

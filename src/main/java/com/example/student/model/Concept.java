@@ -41,6 +41,10 @@ public class Concept {
     private String tip;
     private List<String> commonMistakes;
 
+    // ── video ──
+    private String videoUrl;   // YouTube URL e.g. https://www.youtube.com/watch?v=xxx
+    private String videoTitle; // optional label shown under embed
+
     @Builder.Default
     private String rank = "E";
 

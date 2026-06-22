@@ -303,6 +303,8 @@ public class AdminService {
         if (req.getTip() != null) c.setTip(req.getTip());
         if (req.getCommonMistakes() != null) c.setCommonMistakes(req.getCommonMistakes());
         if (req.getRank() != null) c.setRank(req.getRank());
+        if (req.getVideoUrl() != null) c.setVideoUrl(req.getVideoUrl());
+        if (req.getVideoTitle() != null) c.setVideoTitle(req.getVideoTitle());
         if (req.getEstimatedMinutes() > 0) c.setEstimatedMinutes(req.getEstimatedMinutes());
 
         int newIdx = req.getOrderIndex();
