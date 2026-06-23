@@ -2,6 +2,8 @@ package com.example.student.config;
 
 import com.example.student.model.User;
 import com.example.student.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +12,8 @@ import java.util.List;
 
 @Component
 public class GuestCleanupScheduler {
+
+    private static final Logger log = LoggerFactory.getLogger(GuestCleanupScheduler.class);
 
     private final UserRepository userRepository;
 
@@ -24,7 +28,7 @@ public class GuestCleanupScheduler {
         List<User> expired = userRepository.findByRoleAndCreatedAtBefore("GUEST", cutoff);
         if (!expired.isEmpty()) {
             userRepository.deleteAll(expired);
-            System.out.println("[GuestCleanup] Deleted " + expired.size() + " expired guest account(s)");
+            log.info("GuestCleanup: deleted {} expired guest account(s)", expired.size());
         }
     }
 }

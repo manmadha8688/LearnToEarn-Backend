@@ -1,5 +1,7 @@
 package com.example.student.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,8 @@ import java.net.http.HttpResponse;
 
 @Service
 public class EmailService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     @Value("${brevo.api.key}")
     private String apiKey;
@@ -26,9 +30,9 @@ public class EmailService {
         try {
             String body = buildPayload(to, "Your OTP — LearnToEarn", buildOtpHtml(otp));
             send(body);
-            System.out.println("[EmailService] OTP sent to " + to);
+            log.info("OTP email sent to {}", to);
         } catch (Exception e) {
-            System.err.println("[EmailService] FAILED: " + e.getMessage());
+            log.error("Failed to send OTP email to {}: {}", to, e.getMessage());
         }
     }
 
