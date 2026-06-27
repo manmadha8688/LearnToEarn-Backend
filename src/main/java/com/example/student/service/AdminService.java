@@ -275,6 +275,8 @@ public class AdminService {
         c.setRank(req.getRank() != null ? req.getRank() : "E");
         c.setEstimatedMinutes(req.getEstimatedMinutes() > 0 ? req.getEstimatedMinutes() : 15);
         c.setOrderIndex(newIdx);
+        c.setVideoUrl(req.getVideoUrl());
+        c.setVideoTitle(req.getVideoTitle());
         Concept saved = conceptRepository.save(c);
         subject.setTotalConcepts((int) conceptRepository.countBySubjectId(subject.getId()));
         subjectRepository.save(subject);
