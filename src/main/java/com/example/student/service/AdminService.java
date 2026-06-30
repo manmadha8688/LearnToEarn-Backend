@@ -27,6 +27,7 @@ public class AdminService {
     private final QuestionRepository questionRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final UserSubjectBadgeRepository badgeRepository;
+    private final UserRoadmapBadgeRepository roadmapBadgeRepository;
     private final UserRoadmapEnrollmentRepository enrollmentRepository;
     private final CacheService cacheService;
     private final MissionRepository missionRepository;
@@ -43,6 +44,7 @@ public class AdminService {
                         QuestionRepository questionRepository,
                         QuizAttemptRepository quizAttemptRepository,
                         UserSubjectBadgeRepository badgeRepository,
+                        UserRoadmapBadgeRepository roadmapBadgeRepository,
                         UserRoadmapEnrollmentRepository enrollmentRepository,
                         CacheService cacheService,
                         MissionRepository missionRepository,
@@ -58,6 +60,7 @@ public class AdminService {
         this.questionRepository = questionRepository;
         this.quizAttemptRepository = quizAttemptRepository;
         this.badgeRepository = badgeRepository;
+        this.roadmapBadgeRepository = roadmapBadgeRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.cacheService = cacheService;
         this.missionRepository = missionRepository;
@@ -211,6 +214,10 @@ public class AdminService {
         Subject saved = subjectRepository.save(s);
         cacheService.evict("subjects", "all");
         cacheService.evict("subjects", "id:" + id);
+        cacheService.evict("concepts", "subject:" + id);
+        cacheService.evict("concepts", "count:" + id);
+        conceptRepository.findBySubjectIdOrderByOrderIndex(id).forEach(c ->
+                cacheService.evict("concepts", "id:" + c.getId()));
         return saved;
     }
 
@@ -411,6 +418,7 @@ public class AdminService {
         if (!roadmapRepository.existsById(id))
             throw new ResourceNotFoundException("Roadmap not found");
         quizAttemptRepository.deleteByTypeAndRefId("ROADMAP", id);
+        roadmapBadgeRepository.deleteByRoadmapId(id);
         enrollmentRepository.deleteByRoadmapId(id);
         roadmapSubjectRepository.deleteByRoadmapId(id);
         roadmapRepository.deleteById(id);

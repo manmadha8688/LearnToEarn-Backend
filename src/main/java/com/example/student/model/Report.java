@@ -23,8 +23,10 @@ public class Report {
     private String pageTitle;   // e.g. "Quiz — Variables and Input", "Mission — Bank Account Manager"
 
     // Report details
-    private String type;        // NO_QUESTIONS | WRONG_CONTENT | BROKEN | MISSING_CONTENT | OTHER
+    private String type;        // NO_QUESTIONS | WRONG_CONTENT | BROKEN | MISSING_CONTENT | UI_ISSUE | WRONG_ANSWER | SUGGESTION | OTHER
     private String description;
+    private String expectedBehavior;  // optional — what the user expected instead
+    private String context;           // JSON — page params, viewport, entity ids
 
     // Admin
     @Builder.Default
