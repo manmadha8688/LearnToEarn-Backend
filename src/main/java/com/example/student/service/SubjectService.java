@@ -6,6 +6,7 @@ import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Concept;
 import com.example.student.model.QuizAttempt;
 import com.example.student.model.Subject;
+import com.example.student.model.UserConceptProgress;
 import com.example.student.repository.ConceptRepository;
 import com.example.student.repository.QuizAttemptRepository;
 import com.example.student.repository.SubjectRepository;
@@ -40,8 +41,10 @@ public class SubjectService {
 
     public List<SubjectDTO> getAllSubjects(String userId) {
         List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
         return subjects.stream()
-                .map(s -> toDTO(s, userId))
+                .map(s -> toDTO(s, completedBySubject))
                 .collect(Collectors.toList());
     }
 
@@ -94,15 +97,17 @@ public class SubjectService {
     }
 
     public List<SubjectDTO> search(String query, String userId) {
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
         return subjectRepository.findByTitleContainingIgnoreCase(query)
-                .stream().map(s -> toDTO(s, userId)).collect(Collectors.toList());
+                .stream().map(s -> toDTO(s, completedBySubject)).collect(Collectors.toList());
     }
 
-    private SubjectDTO toDTO(Subject s, String userId) {
-        // Concept count is static — safe to cache; per-user progress stays direct (changes on completion)
+    private SubjectDTO toDTO(Subject s, Map<String, Long> completedBySubject) {
+        // Concept count is static — safe to cache; per-user progress batched above
         long total = cacheService.get("concepts", "count:" + s.getId(),
                 () -> conceptRepository.countBySubjectId(s.getId()));
-        long completed = progressRepository.countByUserIdAndSubjectId(userId, s.getId());
+        long completed = completedBySubject.getOrDefault(s.getId(), 0L);
         SubjectDTO dto = new SubjectDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());

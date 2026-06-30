@@ -99,14 +99,28 @@ public class RoadmapService {
         List<RoadmapSubject> roadmapSubjects =
                 roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(roadmapId);
 
+        List<String> subjectIds = roadmapSubjects.stream()
+                .map(rs -> rs.getSubject().getId())
+                .collect(Collectors.toList());
+
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+                .filter(p -> subjectIds.contains(p.getSubjectId()))
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
+
+        Set<String> badgedSubjectIds = badgeRepository.findByUserId(userId).stream()
+                .map(UserSubjectBadge::getSubjectId)
+                .filter(subjectIds::contains)
+                .collect(Collectors.toSet());
+
         List<RoadmapDetailDTO.SubjectProgress> subjects = roadmapSubjects.stream().map(rs -> {
             Subject s = rs.getSubject();
-            long total = conceptRepository.countBySubjectId(s.getId());
-            long completed = progressRepository.countByUserIdAndSubjectId(userId, s.getId());
+            long total = cacheService.get("concepts", "count:" + s.getId(),
+                    () -> conceptRepository.countBySubjectId(s.getId()));
+            long completed = completedBySubject.getOrDefault(s.getId(), 0L);
             double pct = total > 0
                     ? Math.round((completed * 100.0 / total) * 10) / 10.0
                     : 0;
-            boolean hasBadge = badgeRepository.existsByUserIdAndSubjectId(userId, s.getId());
+            boolean hasBadge = badgedSubjectIds.contains(s.getId());
             return new RoadmapDetailDTO.SubjectProgress(
                     s.getId(), s.getTitle(), s.getIcon(), s.getColor(),
                     rs.getOrderIndex(), (int) total, completed, pct, hasBadge);

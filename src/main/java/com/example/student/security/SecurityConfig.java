@@ -51,7 +51,7 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/guest", "/api/auth/logout", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/forgot-password/verify-otp", "/api/auth/reset-password", "/api/feedback", "/api/ping", "/api/public-stats", "/api/missions", "/api/problems", "/api/problems/**", "/api/walkins", "/api/walkins/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**", "/api/auth/register", "/api/auth/login", "/api/auth/guest", "/api/auth/logout", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/forgot-password/verify-otp", "/api/auth/reset-password", "/api/feedback", "/api/ping", "/api/public-stats", "/api/missions", "/api/problems", "/api/problems/**", "/api/walkins", "/api/walkins/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
