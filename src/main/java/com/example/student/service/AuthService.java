@@ -112,4 +112,18 @@ public class AuthService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    public void resetPassword(String email, String newPassword) {
+        if (!otpService.isResetVerified(email))
+            throw new RuntimeException("Email not verified. Please verify OTP first.");
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if ("GUEST".equals(user.getRole()))
+            throw new RuntimeException("Guest accounts cannot reset password.");
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        otpService.clearReset(email);
+    }
 }

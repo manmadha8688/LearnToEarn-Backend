@@ -15,6 +15,7 @@ public class OtpService {
     private final EmailService emailService;
 
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OtpEntry> resetStore = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IpLimit> ipLimits = new ConcurrentHashMap<>();
 
     private static final int MAX_SENDS_PER_IP_PER_HOUR = 10;
@@ -41,7 +42,12 @@ public class OtpService {
         String otp = String.format("%06d", new Random().nextInt(1_000_000));
         store.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
         recordIpSend(clientIp);
-        emailService.sendOtpEmail(email, otp); // called on a DIFFERENT bean — @Async works correctly
+        try {
+            emailService.sendOtpEmail(email, otp);
+        } catch (RuntimeException e) {
+            store.remove(email);
+            throw e;
+        }
         return 0;
     }
 
@@ -68,11 +74,56 @@ public class OtpService {
         store.remove(email);
     }
 
+    // ── Password reset OTP (separate store) ──────────────────────────
+    public long sendResetOtp(String email, String clientIp) {
+        checkIpLimit(clientIp);
+
+        OtpEntry existing = resetStore.get(email);
+        LocalDateTime now = now();
+
+        if (existing != null) {
+            long cooldown = ChronoUnit.SECONDS.between(now, existing.sentAt().plusSeconds(60));
+            if (cooldown > 0) return cooldown;
+        }
+
+        String otp = String.format("%06d", new Random().nextInt(1_000_000));
+        resetStore.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
+        recordIpSend(clientIp);
+        try {
+            emailService.sendPasswordResetOtpEmail(email, otp);
+        } catch (RuntimeException e) {
+            resetStore.remove(email);
+            throw e;
+        }
+        return 0;
+    }
+
+    public boolean verifyResetOtp(String email, String otp) {
+        OtpEntry entry = resetStore.get(email);
+        if (entry == null) return false;
+        if (entry.expiresAt().isBefore(now())) { resetStore.remove(email); return false; }
+        if (!entry.otp().equals(otp.trim())) return false;
+        resetStore.put(email, new OtpEntry(entry.otp(), entry.expiresAt(), entry.sentAt(), true));
+        return true;
+    }
+
+    public boolean isResetVerified(String email) {
+        OtpEntry entry = resetStore.get(email);
+        if (entry == null) return false;
+        if (entry.expiresAt().isBefore(now())) { resetStore.remove(email); return false; }
+        return entry.verified();
+    }
+
+    public void clearReset(String email) {
+        resetStore.remove(email);
+    }
+
     // ── Scheduled cleanup — every 15 minutes ─────────────────────────
     @Scheduled(fixedDelay = 15 * 60 * 1000)
     public void cleanupExpired() {
         LocalDateTime now = now();
         store.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
+        resetStore.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
         ipLimits.entrySet().removeIf(e ->
             ChronoUnit.HOURS.between(e.getValue().windowStart(), now) >= 1
         );

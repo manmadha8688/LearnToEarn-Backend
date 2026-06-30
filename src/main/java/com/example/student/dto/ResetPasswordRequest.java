@@ -7,11 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class RegisterRequest {
-    @NotBlank
-    @Size(min = 2, max = 100)
-    private String fullName;
-
+public class ResetPasswordRequest {
     @NotBlank
     @Email
     private String email;
@@ -22,7 +18,5 @@ public class RegisterRequest {
         regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,64}$",
         message = "Password must contain at least one uppercase letter, one number, and one special character"
     )
-    private String password;
-
-    private String collegeName;
+    private String newPassword;
 }
