@@ -2,9 +2,9 @@ package com.example.student.model;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,7 +22,8 @@ public class WalkIn {
     private String walkInDate;   // ISO date string "2026-06-20"
     private String walkInTime;   // e.g. "10 AM – 2 PM"
     private String location;     // venue / address
-    private String city;
+    @Indexed
+    private String city;         // filtered by city on the jobs board
 
     private String contactInfo;  // email or phone (optional)
     private String description;  // extra details (optional)
@@ -31,5 +32,6 @@ public class WalkIn {
     private String postedById;   // userId
 
     private LocalDateTime createdAt;
-    private String status;       // ACTIVE | EXPIRED
+    @Indexed
+    private String status;       // ACTIVE | EXPIRED — every list query filters on this
 }

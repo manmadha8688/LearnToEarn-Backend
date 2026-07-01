@@ -5,16 +5,21 @@ import com.example.student.model.User;
 import com.example.student.repository.WalkInRepository;
 import com.example.student.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class WalkInService {
+
+    private static final Logger log = LoggerFactory.getLogger(WalkInService.class);
 
     private final WalkInRepository walkInRepository;
     private final UserRepository userRepository;
@@ -94,14 +99,22 @@ public class WalkInService {
     private void expirePastWalkIns() {
         LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"));
         List<WalkIn> active = walkInRepository.findByStatusOrderByWalkInDateAsc("ACTIVE");
-        active.forEach(w -> {
+        List<WalkIn> toExpire = new ArrayList<>();
+        for (WalkIn w : active) {
             try {
-                LocalDate date = LocalDate.parse(w.getWalkInDate());
-                if (date.isBefore(today)) {
+                if (LocalDate.parse(w.getWalkInDate()).isBefore(today)) {
                     w.setStatus("EXPIRED");
-                    walkInRepository.save(w);
+                    toExpire.add(w);
                 }
-            } catch (Exception ignored) {}
-        });
+            } catch (java.time.format.DateTimeParseException e) {
+                // Bad date string — expire it so it stops being served, and log for cleanup.
+                log.warn("WalkIn {} has unparseable date '{}' — marking EXPIRED", w.getId(), w.getWalkInDate());
+                w.setStatus("EXPIRED");
+                toExpire.add(w);
+            }
+        }
+        if (!toExpire.isEmpty()) {
+            walkInRepository.saveAll(toExpire);
+        }
     }
 }

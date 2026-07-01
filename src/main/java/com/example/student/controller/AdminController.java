@@ -1,6 +1,5 @@
 package com.example.student.controller;
 
-import com.example.student.config.DataSeeder;
 import com.example.student.dto.AdminConceptRequest;
 import com.example.student.dto.AdminQuestionRequest;
 import com.example.student.dto.AdminRoadmapRequest;
@@ -20,17 +19,9 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
-    private final DataSeeder dataSeeder;
 
-    public AdminController(AdminService adminService, DataSeeder dataSeeder) {
+    public AdminController(AdminService adminService) {
         this.adminService = adminService;
-        this.dataSeeder = dataSeeder;
-    }
-
-    @PostMapping("/migrate/rich-content")
-    public ResponseEntity<?> migrateRichContent() {
-        dataSeeder.reconcileRichContent();
-        return ResponseEntity.ok(Map.of("message", "Rich content migration complete"));
     }
 
     @GetMapping("/stats")
@@ -129,7 +120,11 @@ public class AdminController {
     @PostMapping("/roadmaps/{id}/subjects")
     public ResponseEntity<?> addSubjectToRoadmap(@PathVariable String id,
                                                   @RequestBody Map<String, Object> body) {
-        String subjectId = body.get("subjectId").toString();
+        Object subjectIdObj = body.get("subjectId");
+        if (subjectIdObj == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "subjectId is required"));
+        }
+        String subjectId = subjectIdObj.toString();
         int orderIndex = body.containsKey("orderIndex")
                 ? Integer.parseInt(body.get("orderIndex").toString()) : 0;
         return ResponseEntity.ok(adminService.addSubjectToRoadmap(id, subjectId, orderIndex));
@@ -146,8 +141,12 @@ public class AdminController {
     public ResponseEntity<?> reorderSubject(@PathVariable String roadmapId,
                                              @PathVariable String subjectId,
                                              @RequestBody Map<String, Integer> body) {
+        Integer newOrderIndex = body.get("newOrderIndex");
+        if (newOrderIndex == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "newOrderIndex is required"));
+        }
         return ResponseEntity.ok(adminService.reorderSubjectInRoadmap(
-                roadmapId, subjectId, body.get("newOrderIndex")));
+                roadmapId, subjectId, newOrderIndex));
     }
 
     // ─── QUESTIONS ───────────────────────────────────────────────────────────

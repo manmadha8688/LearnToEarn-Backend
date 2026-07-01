@@ -22,4 +22,5 @@ public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, Stri
     long countByUserIdAndTypeAndRefId(String userId, String type, String refId);
     void deleteByTypeAndRefId(String type, String refId);
     void deleteByTypeAndRefIdIn(String type, java.util.List<String> refIds);
+    void deleteByUserId(String userId);
 }

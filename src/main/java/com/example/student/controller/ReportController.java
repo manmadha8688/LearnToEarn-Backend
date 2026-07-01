@@ -27,6 +27,9 @@ public class ReportController {
     @PostMapping
     public ResponseEntity<?> submit(@RequestBody Report report,
                                     @AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
         report.setUserId(user.getId());
         report.setUserEmail(user.getEmail());
         report.setUserName(user.getFullName());

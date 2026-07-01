@@ -3,6 +3,7 @@ package com.example.student.model;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -29,8 +30,9 @@ public class Report {
     private String context;           // JSON — page params, viewport, entity ids
 
     // Admin
+    @Indexed
     @Builder.Default
-    private String status = "OPEN";  // OPEN | IN_PROGRESS | RESOLVED
+    private String status = "OPEN";  // OPEN | IN_PROGRESS | RESOLVED — filtered/counted by status
 
     private String adminNote;
 
