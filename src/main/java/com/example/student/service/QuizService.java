@@ -63,8 +63,9 @@ public class QuizService {
         checkCooldown("SUBJECT", subjectId, userId);
         List<Concept> concepts = conceptRepo.findBySubjectIdOrderByOrderIndex(subjectId);
         List<String> conceptIds = concepts.stream().map(Concept::getId).collect(Collectors.toList());
-        List<Question> all = new ArrayList<>();
-        for (String cid : conceptIds) all.addAll(questionRepo.findByConceptId(cid));
+        List<Question> all = conceptIds.isEmpty()
+                ? List.of()
+                : questionRepo.findByConceptIdIn(conceptIds);
         if (all.isEmpty()) throw new RuntimeException("No questions available for this subject yet");
         Collections.shuffle(all);
         List<Question> picked = all.stream().limit(QuizConstants.SUBJECT_TOTAL).collect(Collectors.toList());
@@ -74,10 +75,12 @@ public class QuizService {
     public QuizStartResponse startRoadmapQuiz(String roadmapId, String userId) {
         checkCooldown("ROADMAP", roadmapId, userId);
         List<RoadmapSubject> roadmapSubjects = roadmapSubjectRepo.findByRoadmapIdOrderByOrderIndex(roadmapId);
-        List<Question> all = new ArrayList<>();
-        for (RoadmapSubject rs : roadmapSubjects) {
-            all.addAll(questionRepo.findBySubjectId(rs.getSubjectId()));
-        }
+        List<String> subjectIds = roadmapSubjects.stream()
+                .map(RoadmapSubject::getSubjectId)
+                .collect(Collectors.toList());
+        List<Question> all = subjectIds.isEmpty()
+                ? List.of()
+                : questionRepo.findBySubjectIdIn(subjectIds);
         if (all.isEmpty()) throw new RuntimeException("No questions available for this roadmap yet");
         Collections.shuffle(all);
         List<Question> picked = all.stream().limit(QuizConstants.ROADMAP_TOTAL).collect(Collectors.toList());
@@ -155,26 +158,28 @@ public class QuizService {
                 dailyBonus = (boolean) result.getOrDefault("dailyBonusEarned", false);
             } else if ("SUBJECT".equals(type)) {
                 badge = "SUBJECT_MASTERED";
-                UserSubjectBadge b = badgeRepo.findByUserIdAndSubjectId(userId, refId)
-                        .orElse(new UserSubjectBadge(null, userId, refId, score, total, null));
-                if (b.getScore() <= score) {
+                var existing = badgeRepo.findByUserIdAndSubjectId(userId, refId);
+                UserSubjectBadge b = existing.orElse(new UserSubjectBadge(null, userId, refId, 0, 0, null));
+                boolean improved = existing.isEmpty() || score > b.getScore();
+                if (improved) {
                     b.setScore(score);
                     b.setTotal(total);
                     b.setEarnedAt(LocalDateTime.now());
                     badgeRepo.save(b);
+                    xpEarned = progressService.awardXp(userId, score * 10);
                 }
-                xpEarned = progressService.awardXp(userId, score * 10);
             } else if ("ROADMAP".equals(type)) {
                 badge = score >= QuizConstants.ROADMAP_JOB_READY ? "JOB_READY" : "INTERVIEW_READY";
-                xpEarned = progressService.awardXp(userId, score * 10);
-                UserRoadmapBadge rb = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, refId)
-                        .orElse(new UserRoadmapBadge(null, userId, refId, badge, score, total, null));
-                if (rb.getScore() <= score) {
+                var existing = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, refId);
+                UserRoadmapBadge rb = existing.orElse(new UserRoadmapBadge(null, userId, refId, badge, 0, 0, null));
+                boolean improved = existing.isEmpty() || score > rb.getScore();
+                if (improved) {
                     rb.setBadge(badge);
                     rb.setScore(score);
                     rb.setTotal(total);
                     rb.setEarnedAt(LocalDateTime.now());
                     roadmapBadgeRepo.save(rb);
+                    xpEarned = progressService.awardXp(userId, score * 10);
                 }
             }
         }
@@ -257,8 +262,9 @@ public class QuizService {
 
     public Map<String, Object> getSubjectStatus(String subjectId, String userId) {
         List<Concept> concepts = conceptRepo.findBySubjectIdOrderByOrderIndex(subjectId);
-        boolean allMastered = !concepts.isEmpty() && concepts.stream()
-                .allMatch(c -> attemptRepo.existsByUserIdAndTypeAndRefIdAndPassedTrue(userId, "CONCEPT", c.getId()));
+        int conceptCount = concepts.size();
+        long completed = progressRepo.countByUserIdAndSubjectId(userId, subjectId);
+        boolean allMastered = conceptCount > 0 && completed >= conceptCount;
 
         Optional<UserSubjectBadge> badge = badgeRepo.findByUserIdAndSubjectId(userId, subjectId);
         return Map.of(
@@ -266,7 +272,7 @@ public class QuizService {
                 "hasBadge", badge.isPresent(),
                 "badgeScore", badge.map(UserSubjectBadge::getScore).orElse(0),
                 "badgeTotal", badge.map(UserSubjectBadge::getTotal).orElse(0),
-                "conceptCount", concepts.size()
+                "conceptCount", conceptCount
         );
     }
 
@@ -303,8 +309,11 @@ public class QuizService {
 
     public Map<String, Object> getRoadmapStatus(String roadmapId, String userId) {
         List<RoadmapSubject> roadmapSubjects = roadmapSubjectRepo.findByRoadmapIdOrderByOrderIndex(roadmapId);
+        Set<String> badgeSubjectIds = badgeRepo.findByUserId(userId).stream()
+                .map(UserSubjectBadge::getSubjectId)
+                .collect(Collectors.toSet());
         boolean allSubjectsDone = !roadmapSubjects.isEmpty() && roadmapSubjects.stream()
-                .allMatch(rs -> badgeRepo.existsByUserIdAndSubjectId(userId, rs.getSubjectId()));
+                .allMatch(rs -> badgeSubjectIds.contains(rs.getSubjectId()));
         java.util.Optional<UserRoadmapBadge> rb = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, roadmapId);
         java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
         result.put("allSubjectsDone", allSubjectsDone);

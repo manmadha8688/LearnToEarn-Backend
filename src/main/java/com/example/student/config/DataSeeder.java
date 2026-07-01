@@ -13,6 +13,8 @@ import com.example.student.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -29,26 +31,32 @@ public class DataSeeder implements CommandLineRunner {
     private final RoadmapRepository roadmapRepository;
     private final QuestionRepository questionRepository;
     private final ConceptRepository conceptRepository;
+    private final Environment environment;
 
     public DataSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder,
                       ProblemRepository problemRepository,
                       RoadmapRepository roadmapRepository,
                       QuestionRepository questionRepository,
-                      ConceptRepository conceptRepository) {
+                      ConceptRepository conceptRepository,
+                      Environment environment) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.problemRepository = problemRepository;
         this.roadmapRepository = roadmapRepository;
         this.questionRepository = questionRepository;
         this.conceptRepository = conceptRepository;
+        this.environment = environment;
     }
 
 
     @Override
     public void run(String... args) {
-        seedAdmin();
+        if (!environment.acceptsProfiles(Profiles.of("prod"))) {
+            seedAdmin();
+        } else {
+            log.info("DataSeeder: skipping demo admin seed in prod profile");
+        }
         cleanupLegacyGuests();
-       
     }
 
     public void reconcileRichContent() { }

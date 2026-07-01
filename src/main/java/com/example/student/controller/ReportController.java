@@ -6,6 +6,7 @@ import com.example.student.repository.ReportRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +37,7 @@ public class ReportController {
 
     // Admin — list reports, optionally filtered by status
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -49,6 +51,7 @@ public class ReportController {
 
     // Admin — update status / add note
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> update(@PathVariable String id,
                                     @RequestBody Map<String, String> body) {
         return reportRepository.findById(id).map(r -> {
@@ -66,6 +69,7 @@ public class ReportController {
 
     // Admin — delete
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> delete(@PathVariable String id) {
         reportRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Deleted"));
@@ -73,6 +77,7 @@ public class ReportController {
 
     // Stats for admin dashboard
     @GetMapping("/stats")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> stats() {
         return ResponseEntity.ok(Map.of(
             "total", reportRepository.count(),
