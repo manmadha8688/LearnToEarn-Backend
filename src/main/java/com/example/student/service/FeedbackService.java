@@ -7,7 +7,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -20,11 +19,14 @@ public class FeedbackService {
     }
 
     public Feedback submit(Map<String, Object> body, String userId) {
-        int rating = body.containsKey("rating") ? ((Number) body.get("rating")).intValue() : 0;
-        String experience    = (String) body.getOrDefault("experience", "");
-        String category      = (String) body.getOrDefault("category", null);
-        String categoryNote  = (String) body.getOrDefault("categoryNote", null);
-        Boolean isUseful     = body.containsKey("isUseful") ? (Boolean) body.get("isUseful") : null;
+        // Type-safe extraction: tolerate malformed client payloads without throwing ClassCastException.
+        Object ratingObj = body.get("rating");
+        int rating = ratingObj instanceof Number ? ((Number) ratingObj).intValue() : 0;
+        String experience    = body.get("experience")   instanceof String s ? s : "";
+        String category      = body.get("category")     instanceof String s ? s : null;
+        String categoryNote  = body.get("categoryNote") instanceof String s ? s : null;
+        Object usefulObj = body.get("isUseful");
+        Boolean isUseful = usefulObj instanceof Boolean b ? b : null;
 
         Feedback fb = Feedback.builder()
                 .rating(rating)
@@ -37,10 +39,6 @@ public class FeedbackService {
                 .build();
 
         return feedbackRepository.save(fb);
-    }
-
-    public List<Feedback> getAll() {
-        return feedbackRepository.findAllByOrderByCreatedAtDesc();
     }
 
     public Page<Feedback> getPaged(int page, int size) {

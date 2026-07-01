@@ -1,7 +1,6 @@
 package com.example.student.service;
 
 import com.example.student.config.QuizConstants;
-import com.example.student.service.CacheService;
 import com.example.student.dto.*;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.*;
@@ -97,13 +96,21 @@ public class QuizService {
     // ─── SUBMIT ───────────────────────────────────────────────────────────────
 
     public QuizResultResponse submitQuiz(QuizSubmitRequest req, String userId) {
-        String type = req.getType().toUpperCase();
+        String type = req.getType() == null ? "" : req.getType().toUpperCase();
         String refId = req.getRefId();
         List<String> qIds = req.getQuestionIds();
         List<Integer> answers = req.getAnswers();
 
-        List<Question> questions = questionRepo.findAllById(qIds);
-        Map<String, Question> qMap = questions.stream().collect(Collectors.toMap(Question::getId, q -> q));
+        // Load the legitimate question pool for this quiz and validate the submission
+        // against it. This stops a client from substituting, duplicating, dropping, or
+        // injecting questions to game the fixed pass threshold — the correct answers were
+        // already checked server-side, but the *set* of questions must be trusted too.
+        List<Question> pool = loadQuestionPool(type, refId);
+        if (pool.isEmpty()) throw new RuntimeException("No questions available for this quiz");
+        Map<String, Question> qMap = pool.stream()
+                .collect(Collectors.toMap(Question::getId, q -> q, (a, b) -> a));
+        int expectedTotal = Math.min(pool.size(), totalFor(type));
+        validateSubmission(qIds, answers, qMap.keySet(), expectedTotal);
 
         int score = 0;
         List<QuizAnswerResult> results = new ArrayList<>();
@@ -325,6 +332,48 @@ public class QuizService {
     }
 
     // ─── HELPERS ──────────────────────────────────────────────────────────────
+
+    /** The full, legitimate set of questions a given quiz can draw from. */
+    private List<Question> loadQuestionPool(String type, String refId) {
+        return switch (type) {
+            case "CONCEPT" -> questionRepo.findByConceptId(refId);
+            case "SUBJECT" -> {
+                List<String> conceptIds = conceptRepo.findBySubjectIdOrderByOrderIndex(refId)
+                        .stream().map(Concept::getId).collect(Collectors.toList());
+                yield conceptIds.isEmpty() ? List.of() : questionRepo.findByConceptIdIn(conceptIds);
+            }
+            case "ROADMAP" -> {
+                List<String> subjectIds = roadmapSubjectRepo.findByRoadmapIdOrderByOrderIndex(refId)
+                        .stream().map(RoadmapSubject::getSubjectId).collect(Collectors.toList());
+                yield subjectIds.isEmpty() ? List.of() : questionRepo.findBySubjectIdIn(subjectIds);
+            }
+            default -> List.of();
+        };
+    }
+
+    private int totalFor(String type) {
+        return switch (type) {
+            case "CONCEPT" -> QuizConstants.CONCEPT_TOTAL;
+            case "SUBJECT" -> QuizConstants.SUBJECT_TOTAL;
+            case "ROADMAP" -> QuizConstants.ROADMAP_TOTAL;
+            default -> 0;
+        };
+    }
+
+    /** Reject any submission that doesn't match the exact shape of a real quiz for this ref. */
+    private void validateSubmission(List<String> qIds, List<Integer> answers,
+                                    Set<String> validIds, int expectedTotal) {
+        if (qIds == null || answers == null)
+            throw new RuntimeException("Invalid quiz submission");
+        if (qIds.size() != answers.size())
+            throw new RuntimeException("Invalid quiz submission: answer count mismatch");
+        if (expectedTotal <= 0 || qIds.size() != expectedTotal)
+            throw new RuntimeException("Invalid quiz submission: unexpected number of questions");
+        if (new HashSet<>(qIds).size() != qIds.size())
+            throw new RuntimeException("Invalid quiz submission: duplicate questions");
+        if (!validIds.containsAll(qIds))
+            throw new RuntimeException("Invalid quiz submission: unknown questions");
+    }
 
     private void checkCooldown(String type, String refId, String userId) {
         Optional<QuizAttempt> latest = attemptRepo

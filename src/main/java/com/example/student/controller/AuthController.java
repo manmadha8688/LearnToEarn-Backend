@@ -89,6 +89,9 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("id",            user.getId());
         res.put("fullName",      user.getFullName());

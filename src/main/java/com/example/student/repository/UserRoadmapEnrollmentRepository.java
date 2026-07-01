@@ -10,4 +10,5 @@ public interface UserRoadmapEnrollmentRepository extends MongoRepository<UserRoa
     boolean existsByUserIdAndRoadmapId(String userId, String roadmapId);
     java.util.Optional<UserRoadmapEnrollment> findByUserIdAndRoadmapId(String userId, String roadmapId);
     void deleteByRoadmapId(String roadmapId);
+    void deleteByUserId(String userId);
 }

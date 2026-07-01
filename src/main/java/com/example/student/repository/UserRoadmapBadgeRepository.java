@@ -11,4 +11,5 @@ public interface UserRoadmapBadgeRepository extends MongoRepository<UserRoadmapB
     boolean existsByUserIdAndRoadmapId(String userId, String roadmapId);
     List<UserRoadmapBadge> findByUserId(String userId);
     void deleteByRoadmapId(String roadmapId);
+    void deleteByUserId(String userId);
 }

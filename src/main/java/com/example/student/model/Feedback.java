@@ -2,6 +2,7 @@ package com.example.student.model;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -20,5 +21,6 @@ public class Feedback {
     private Boolean isUseful;         // true / false
     private String userId;            // optional — set if user is logged in
 
-    private LocalDateTime createdAt;
+    @Indexed
+    private LocalDateTime createdAt;  // admin list is sorted by createdAt desc
 }

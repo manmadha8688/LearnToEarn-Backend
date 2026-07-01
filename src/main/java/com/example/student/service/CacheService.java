@@ -28,7 +28,6 @@ public class CacheService {
         "roadmaps",    86400L,   // 24 h
         "missions",    86400L,   // 24 h — reference data, rarely changes
         "problems",    86400L,   // 24 h — reference data, rarely changes
-        "userProfile", 1800L,    // 30 min
         "progress",    300L      // 5 min
     );
 

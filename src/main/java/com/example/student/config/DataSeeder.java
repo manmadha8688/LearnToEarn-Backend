@@ -59,8 +59,6 @@ public class DataSeeder implements CommandLineRunner {
         cleanupLegacyGuests();
     }
 
-    public void reconcileRichContent() { }
-
     // ─── Guest Cleanup ───────────────────────────────────────────────────────
     // One-time migration: delete legacy guest accounts created before activity tracking
     private void cleanupLegacyGuests() {

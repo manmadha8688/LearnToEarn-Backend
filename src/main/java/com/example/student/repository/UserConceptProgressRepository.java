@@ -23,6 +23,7 @@ public interface UserConceptProgressRepository extends MongoRepository<UserConce
     void deleteByUserIdAndConceptId(String userId, String conceptId);
     void deleteByConceptId(String conceptId);
     void deleteBySubjectId(String subjectId);
+    void deleteByUserId(String userId);
 
     @Aggregation(pipeline = {
         "{ '$group': { '_id': '$subjectId', 'subjectTitle': { '$first': '$subjectTitle' }, 'subjectIcon': { '$first': '$subjectIcon' }, 'count': { '$sum': 1 } } }",

@@ -53,9 +53,12 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
+        // Normalise to match how emails are stored at registration (trimmed + lowercase),
+        // so login is not case-sensitive.
+        String email = req.getEmail() == null ? "" : req.getEmail().trim().toLowerCase();
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-        User user = userRepository.findByEmail(req.getEmail())
+                new UsernamePasswordAuthenticationToken(email, req.getPassword()));
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
         user.setLoginCount(user.getLoginCount() + 1);

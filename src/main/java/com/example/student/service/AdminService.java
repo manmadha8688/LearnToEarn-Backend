@@ -161,7 +161,21 @@ public class AdminService {
     public void deleteUser(String userId) {
         if (!userRepository.existsById(userId))
             throw new ResourceNotFoundException("User not found");
+        deleteUserOwnedData(userId);
         userRepository.deleteById(userId);
+    }
+
+    /**
+     * Remove all per-user learning data (progress, quiz attempts, badges, enrollments).
+     * Reports, feedback and walk-ins are intentionally preserved as admin/community records.
+     * Safe to call for any user id.
+     */
+    public void deleteUserOwnedData(String userId) {
+        progressRepository.deleteByUserId(userId);
+        quizAttemptRepository.deleteByUserId(userId);
+        badgeRepository.deleteByUserId(userId);
+        roadmapBadgeRepository.deleteByUserId(userId);
+        enrollmentRepository.deleteByUserId(userId);
     }
 
     // ─── SUBJECTS ────────────────────────────────────────────────────────────
@@ -289,6 +303,7 @@ public class AdminService {
         subjectRepository.save(subject);
         cacheService.evict("concepts", "subject:" + subject.getId());
         cacheService.evict("concepts", "count:" + subject.getId());
+        cacheService.evict("concepts", "total");
         cacheService.evict("subjects", "id:" + subject.getId());
         cacheService.evict("subjects", "all");
         return saved;
@@ -342,6 +357,9 @@ public class AdminService {
         Concept updated = conceptRepository.save(c);
         cacheService.evict("concepts", "id:" + id);
         cacheService.evict("concepts", "subject:" + c.getSubjectId());
+        // Concept summaries are embedded in the subject-detail payload, so refresh those too.
+        cacheService.evict("subjects", "id:" + c.getSubjectId());
+        cacheService.evict("subjects", "all");
         return updated;
     }
 
@@ -362,6 +380,7 @@ public class AdminService {
         cacheService.evict("concepts", "id:" + id);
         cacheService.evict("concepts", "subject:" + subjectId);
         cacheService.evict("concepts", "count:" + subjectId);
+        cacheService.evict("concepts", "total");
         cacheService.evict("subjects", "id:" + subjectId);
         cacheService.evict("subjects", "all");
     }
