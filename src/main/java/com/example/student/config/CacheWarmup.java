@@ -93,6 +93,7 @@ public class CacheWarmup {
                 cacheService.get("concepts", "count:" + s.getId(), () -> count);
             }
         }
+        cacheService.get("concepts", "total", conceptRepository::count);
     }
 
     // ─── Roadmaps ────────────────────────────────────────────────────────────
@@ -127,11 +128,11 @@ public class CacheWarmup {
         cacheService.get("problems", "all",
                 problemRepository::findAllByOrderByOrderIndexAsc);
 
-        for (String track : List.of("START_CODING", "LOGIC_BUILDING", "SKILL_UP", "INTERVIEW_PREP")) {
+        for (String track : List.of("START_CODING", "LOGIC_BUILDING", "SKILL_UP", "INTERVIEW_PREP", "SCENARIO_CODING")) {
             final String t = track;
             cacheService.get("problems", "track:" + t,
                     () -> problemRepository.findByTracksContainingOrderByOrderIndexAsc(t));
         }
-        log.info("Cache warmup: problems warmed for all 4 tracks");
+        log.info("Cache warmup: problems warmed for all 5 tracks");
     }
 }

@@ -7,7 +7,9 @@ import java.util.List;
 
 public interface QuestionRepository extends MongoRepository<Question, String> {
     List<Question> findByConceptId(String conceptId);
+    List<Question> findByConceptIdIn(List<String> conceptIds);
     List<Question> findBySubjectId(String subjectId);
+    List<Question> findBySubjectIdIn(List<String> subjectIds);
     long countByConceptId(String conceptId);
     void deleteByConceptId(String conceptId);
     void deleteBySubjectId(String subjectId);

@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, String> {
     List<QuizAttempt> findByUserIdAndTypeAndRefId(String userId, String type, String refId);
     List<QuizAttempt> findByUserIdAndTypeAndPassedTrue(String userId, String type);
+    long countByUserIdAndTypeAndPassedTrue(String userId, String type);
     Optional<QuizAttempt> findTopByUserIdAndTypeAndRefIdOrderByTakenAtDesc(String userId, String type, String refId);
     boolean existsByUserIdAndTypeAndRefIdAndPassedTrue(String userId, String type, String refId);
     // Used by ProgressService to detect first concept of the day (excludes current concept)

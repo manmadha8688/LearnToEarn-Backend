@@ -148,15 +148,15 @@ public class ProgressService {
     }
 
     private ProgressSummaryDTO buildProgressSummary(String userId) {
-        long totalConcepts     = conceptRepository.count();
-        long completedConcepts = progressRepository.countByUserId(userId);
+        // Single progress fetch — reused for streak, counts, and per-subject breakdown
+        List<UserConceptProgress> allProgress = progressRepository.findByUserId(userId);
+        long completedConcepts = allProgress.size();
+        long totalConcepts = cacheService.get("concepts", "total", conceptRepository::count);
         double percentage = totalConcepts > 0
                 ? Math.round((completedConcepts * 100.0 / totalConcepts) * 10) / 10.0
                 : 0;
 
         // ── Streak ──────────────────────────────────────────────────────────
-        // Fetch once and reuse below for per-subject counts (saves N DB queries)
-        List<UserConceptProgress> allProgress = progressRepository.findByUserId(userId);
         Set<LocalDate> completionDates = allProgress.stream()
                 .filter(p -> p.getCompletedAt() != null)
                 .map(p -> p.getCompletedAt().toLocalDate())
@@ -257,7 +257,7 @@ public class ProgressService {
         badges.forEach(b -> b.put("type", "SUBJECT"));
 
         // ── Quiz counts ───────────────────────────────────────────────────────
-        long conceptPassed   = quizAttemptRepository.findByUserIdAndTypeAndPassedTrue(userId, "CONCEPT").size();
+        long conceptPassed   = quizAttemptRepository.countByUserIdAndTypeAndPassedTrue(userId, "CONCEPT");
         long subjectPassed   = badges.size();
         long roadmapPassed   = roadmapBadges.size();
 
