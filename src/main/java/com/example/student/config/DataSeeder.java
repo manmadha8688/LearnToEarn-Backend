@@ -86,28 +86,4 @@ public class DataSeeder implements CommandLineRunner {
         );
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-    private ProblemQuestion.SolutionCode sc(String c, String py, String java, String cpp) {
-        return new ProblemQuestion.SolutionCode(c, py, java, cpp);
-    }
-    private ProblemQuestion.SolutionVariant sv(String logic, String tc, String sc, ProblemQuestion.SolutionCode code) {
-        return new ProblemQuestion.SolutionVariant(logic, tc, sc, code);
-    }
-    private ProblemQuestion.Solutions sols(ProblemQuestion.SolutionVariant b, ProblemQuestion.SolutionVariant n, ProblemQuestion.SolutionVariant o) {
-        return new ProblemQuestion.Solutions(b, n, o);
-    }
-    private ProblemQuestion.Solutions same(ProblemQuestion.SolutionVariant v) {
-        return new ProblemQuestion.Solutions(v, v, v);
-    }
-
-    private ProblemQuestion base(List<String> tracks, List<String> topics, String cat,
-            String level, String type, String title, int order) {
-        ProblemQuestion p = new ProblemQuestion();
-        p.setTracks(tracks); p.setTopics(topics); p.setCategory(cat);
-        p.setLevel(level); p.setType(type); p.setTitle(title); p.setOrderIndex(order);
-        return p;
-    }
-
-
-
 }

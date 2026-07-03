@@ -555,6 +555,11 @@ public class AdminService {
 
     // ─── PROBLEMS ────────────────────────────────────────────────────────────
 
+    /** All Code Gym tracks — the single source of truth for cache warm/evict loops. */
+    public static final List<String> PROBLEM_TRACKS = List.of(
+            "START_CODING", "LOGIC_BUILDING", "SKILL_UP",
+            "CRACK_IT", "BUILD_IT", "PROVE_IT");
+
     public List<ProblemQuestion> getAllProblems() {
         return problemRepository.findAllByOrderByOrderIndexAsc();
     }
@@ -568,38 +573,27 @@ public class AdminService {
     public ProblemQuestion updateProblem(String id, ProblemQuestion updates) {
         ProblemQuestion p = problemRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Problem not found"));
-        p.setTracks(updates.getTracks());
+        p.setTrack(updates.getTrack());
         p.setTopics(updates.getTopics());
         p.setCategory(updates.getCategory());
         p.setLevel(updates.getLevel());
-        p.setType(updates.getType());
         p.setTitle(updates.getTitle());
         p.setDescription(updates.getDescription());
         p.setInputFormat(updates.getInputFormat());
         p.setOutputFormat(updates.getOutputFormat());
-        p.setSampleInput(updates.getSampleInput());
-        p.setSampleOutput(updates.getSampleOutput());
-        p.setExample1Explanation(updates.getExample1Explanation());
-        p.setSampleInput2(updates.getSampleInput2());
-        p.setSampleOutput2(updates.getSampleOutput2());
-        p.setExample2Explanation(updates.getExample2Explanation());
         p.setConstraints(updates.getConstraints());
         p.setCodeSnippet(updates.getCodeSnippet());
+        p.setExamples(updates.getExamples());
         p.setHints(updates.getHints());
         p.setApproach(updates.getApproach());
+        p.setWhatYouLearn(updates.getWhatYouLearn());
         p.setSolutions(updates.getSolutions());
         p.setExplanation(updates.getExplanation());
-        p.setInterviewTip(updates.getInterviewTip());
-        p.setIsInterview(updates.getIsInterview());
-        p.setCompaniesThatAsk(updates.getCompaniesThatAsk());
+        p.setTip(updates.getTip());
         p.setOrderIndex(updates.getOrderIndex());
         ProblemQuestion saved = problemRepository.save(p);
         cacheService.evict("problems", "all");
-        cacheService.evict("problems", "track:START_CODING");
-        cacheService.evict("problems", "track:LOGIC_BUILDING");
-        cacheService.evict("problems", "track:SKILL_UP");
-        cacheService.evict("problems", "track:INTERVIEW_PREP");
-        cacheService.evict("problems", "track:SCENARIO_CODING");
+        for (String track : PROBLEM_TRACKS) cacheService.evict("problems", "track:" + track);
         cacheService.evict("problems", "id:" + id);
         return saved;
     }

@@ -31,13 +31,15 @@ public class JwtFilter extends OncePerRequestFilter {
     private String extractToken(HttpServletRequest request) {
         // 1. Prefer httpOnly cookie (secure — JS cannot read this)
         if (request.getCookies() != null) {
-            return Arrays.stream(request.getCookies())
+            String cookieToken = Arrays.stream(request.getCookies())
                     .filter(c -> "jwt".equals(c.getName()))
                     .map(Cookie::getValue)
                     .findFirst()
                     .orElse(null);
+            if (cookieToken != null) return cookieToken;
         }
         // 2. Fallback: Authorization header (for API tools like Postman / backward compat)
+        // Reached when there is no jwt cookie — even if other unrelated cookies exist.
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);

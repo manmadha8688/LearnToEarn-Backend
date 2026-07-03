@@ -128,11 +128,12 @@ public class CacheWarmup {
         cacheService.get("problems", "all",
                 problemRepository::findAllByOrderByOrderIndexAsc);
 
-        for (String track : List.of("START_CODING", "LOGIC_BUILDING", "SKILL_UP", "INTERVIEW_PREP", "SCENARIO_CODING")) {
+        for (String track : com.example.student.service.AdminService.PROBLEM_TRACKS) {
             final String t = track;
             cacheService.get("problems", "track:" + t,
-                    () -> problemRepository.findByTracksContainingOrderByOrderIndexAsc(t));
+                    () -> problemRepository.findByTrackOrderByOrderIndexAsc(t));
         }
-        log.info("Cache warmup: problems warmed for all 5 tracks");
+        log.info("Cache warmup: problems warmed for all {} tracks",
+                com.example.student.service.AdminService.PROBLEM_TRACKS.size());
     }
 }

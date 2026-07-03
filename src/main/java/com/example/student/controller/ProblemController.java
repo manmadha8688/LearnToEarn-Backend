@@ -26,7 +26,7 @@ public class ProblemController {
         String cacheKey = track != null ? "track:" + track : "all";
         List<ProblemQuestion> problems = cacheService.get("problems", cacheKey,
                 () -> track != null
-                        ? repo.findByTracksContainingOrderByOrderIndexAsc(track)
+                        ? repo.findByTrackOrderByOrderIndexAsc(track)
                         : repo.findAllByOrderByOrderIndexAsc());
         return ResponseEntity.ok(problems);
     }

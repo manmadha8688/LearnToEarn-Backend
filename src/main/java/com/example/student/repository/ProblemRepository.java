@@ -7,6 +7,5 @@ import java.util.List;
 
 public interface ProblemRepository extends MongoRepository<ProblemQuestion, String> {
     List<ProblemQuestion> findAllByOrderByOrderIndexAsc();
-    List<ProblemQuestion> findByTracksContainingOrderByOrderIndexAsc(String track);
-    List<ProblemQuestion> findByIsInterviewTrueOrderByOrderIndexAsc();
+    List<ProblemQuestion> findByTrackOrderByOrderIndexAsc(String track);
 }
