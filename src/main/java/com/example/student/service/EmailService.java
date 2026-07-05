@@ -23,7 +23,7 @@ public class EmailService {
     private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
     private static final String FROM_EMAIL = "noreply@learnforearn.in";
     private static final String FROM_NAME  = "learnforearn";
-    private static final String APP_URL    = "https://learnforearn.com";
+    private static final String APP_URL    = "https://learnforearn.in";
     private static final String DASHBOARD_URL = APP_URL + "/skill-arena/dashboard";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();

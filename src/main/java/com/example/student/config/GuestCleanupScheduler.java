@@ -24,8 +24,8 @@ public class GuestCleanupScheduler {
         this.adminService = adminService;
     }
 
-    // Runs every day at 2:00 AM — deletes GUEST accounts older than 3 days
-    @Scheduled(cron = "0 0 2 * * *")
+    // Runs every day at 2:00 AM IST — deletes GUEST accounts older than 3 days
+    @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Kolkata")
     public void cleanupExpiredGuests() {
         LocalDateTime cutoff = LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).minusDays(3);
         List<User> expired = userRepository.findByRoleAndCreatedAtBefore("GUEST", cutoff);

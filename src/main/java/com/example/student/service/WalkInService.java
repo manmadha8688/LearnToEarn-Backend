@@ -41,6 +41,7 @@ public class WalkInService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        walkIn.setId(null); // never let the client choose the document id (prevents overwriting others' walk-ins)
         walkIn.setPostedBy(user.getFullName());
         walkIn.setPostedById(user.getId());
         walkIn.setCreatedAt(LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));

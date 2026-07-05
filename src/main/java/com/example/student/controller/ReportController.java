@@ -30,6 +30,7 @@ public class ReportController {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
+        report.setId(null); // never let the client choose the document id (prevents overwriting others' reports)
         report.setUserId(user.getId());
         report.setUserEmail(user.getEmail());
         report.setUserName(user.getFullName());
