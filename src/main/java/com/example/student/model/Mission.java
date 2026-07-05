@@ -37,7 +37,7 @@ public class Mission {
     private List<String> conceptsCovered;
     private List<String> commonMistakes;
 
-    // Category: SUBJECT_PRACTICE | REAL_WORLD | ACADEMIC | ROLE_BASED
+    // Category: SUBJECT_PRACTICE | ROLE_BASED | ACADEMIC
     private String category;
 
     // Only used when category = ROLE_BASED

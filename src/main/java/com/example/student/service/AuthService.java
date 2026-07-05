@@ -19,15 +19,17 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final OtpService otpService;
+    private final EmailService emailService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil, AuthenticationManager authenticationManager,
-                       OtpService otpService) {
+                       OtpService otpService, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.otpService = otpService;
+        this.emailService = emailService;
     }
 
     public AuthResponse register(RegisterRequest req) {
@@ -47,6 +49,7 @@ public class AuthService {
 
         User saved = userRepository.save(user);
         otpService.clear(email); // clean up OTP entry after successful registration
+        emailService.sendWelcomeEmail(saved.getEmail(), saved.getFullName()); // best-effort, never throws
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
@@ -128,5 +131,6 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         otpService.clearReset(email);
+        emailService.sendPasswordChangedEmail(user.getEmail(), user.getFullName()); // best-effort, never throws
     }
 }
