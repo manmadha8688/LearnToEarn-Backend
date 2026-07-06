@@ -36,6 +36,7 @@ public class AdminService {
     private final ReportRepository reportRepository;
     private final WalkInRepository walkInRepository;
     private final BookmarkRepository bookmarkRepository;
+    private final LoginEventRepository loginEventRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -53,7 +54,8 @@ public class AdminService {
                         ProblemRepository problemRepository,
                         ReportRepository reportRepository,
                         WalkInRepository walkInRepository,
-                        BookmarkRepository bookmarkRepository) {
+                        BookmarkRepository bookmarkRepository,
+                        LoginEventRepository loginEventRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -71,26 +73,23 @@ public class AdminService {
         this.reportRepository = reportRepository;
         this.walkInRepository = walkInRepository;
         this.bookmarkRepository = bookmarkRepository;
+        this.loginEventRepository = loginEventRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
 
     public AdminStatsDTO getStats() {
-        long totalUsers = userRepository.count();
-        long totalStudents = userRepository.countByRole("STUDENT");
-        long totalGuests = userRepository.countByRole("GUEST");
-        long totalSubjects = subjectRepository.count();
-        long totalConcepts = conceptRepository.count();
-        long totalRoadmaps = roadmapRepository.count();
-
         List<Map<String, Object>> recentUsers = userRepository.findTop5ByOrderByCreatedAtDesc()
-                .stream().map(u -> Map.<String, Object>of(
-                        "id", u.getId(),
-                        "fullName", u.getFullName(),
-                        "email", u.getEmail(),
-                        "role", u.getRole(),
-                        "createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : ""
-                )).collect(Collectors.toList());
+                .stream().map(u -> {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", u.getId());
+                    m.put("fullName", u.getFullName());
+                    m.put("email", u.getEmail());
+                    m.put("role", u.getRole());
+                    m.put("provider", deriveProvider(u));
+                    m.put("createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : "");
+                    return m;
+                }).collect(Collectors.toList());
 
         List<SubjectCompletionAgg> topRaw = progressRepository.findTopSubjectsByCompletion();
         List<Map<String, Object>> topSubjects = topRaw.stream()
@@ -101,15 +100,61 @@ public class AdminService {
                         "completionCount", r.getCount()
                 )).collect(Collectors.toList());
 
-        long totalMissions  = missionRepository.count();
-        long totalProblems  = problemRepository.count();
-        long totalQuestions = questionRepository.count();
-        long totalReports   = reportRepository.count();
-        long totalWalkIns   = walkInRepository.count();
+        // ── Today (IST) + last-7-day trend ──
+        java.time.ZoneId ist = java.time.ZoneId.of("Asia/Kolkata");
+        java.time.LocalDate today = java.time.LocalDate.now(ist);
+        java.time.LocalDateTime startOfToday = today.atStartOfDay();
 
-        return new AdminStatsDTO(totalUsers, totalStudents, totalGuests, totalSubjects,
-                totalConcepts, totalRoadmaps, totalMissions, totalProblems, totalQuestions,
-                totalReports, totalWalkIns, recentUsers, topSubjects);
+        long newUsersToday = userRepository.countByCreatedAtAfter(startOfToday);
+        long loginsToday   = loginEventRepository.countByCreatedAtAfter(startOfToday);
+
+        List<Map<String, Object>> loginTrend = new java.util.ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            java.time.LocalDate day = today.minusDays(i);
+            java.time.LocalDateTime dayStart = day.atStartOfDay();
+            java.time.LocalDateTime dayEnd   = day.plusDays(1).atStartOfDay();
+            Map<String, Object> point = new java.util.LinkedHashMap<>();
+            point.put("date", day.toString());
+            point.put("logins", loginEventRepository.countByCreatedAtBetween(dayStart, dayEnd));
+            point.put("signups", userRepository.countByCreatedAtBetween(dayStart, dayEnd));
+            loginTrend.add(point);
+        }
+
+        AdminStatsDTO dto = new AdminStatsDTO();
+        dto.setTotalUsers(userRepository.count());
+        dto.setTotalStudents(userRepository.countByRole("STUDENT"));
+        dto.setTotalGuests(userRepository.countByRole("GUEST"));
+        dto.setTotalSubjects(subjectRepository.count());
+        dto.setTotalConcepts(conceptRepository.count());
+        dto.setTotalRoadmaps(roadmapRepository.count());
+        dto.setTotalMissions(missionRepository.count());
+        dto.setTotalProblems(problemRepository.count());
+        dto.setTotalQuestions(questionRepository.count());
+        dto.setTotalReports(reportRepository.count());
+        dto.setTotalWalkIns(walkInRepository.count());
+        dto.setNewUsersToday(newUsersToday);
+        dto.setLoginsToday(loginsToday);
+        dto.setOpenReports(reportRepository.countByStatus("OPEN"));
+        dto.setGoogleUsers(userRepository.countByProvidersContaining("google"));
+        dto.setLocalUsers(userRepository.countByProvidersContaining("local"));
+        dto.setRecentUsers(recentUsers);
+        dto.setTopSubjects(topSubjects);
+        dto.setLoginTrend(loginTrend);
+        return dto;
+    }
+
+    /**
+     * Human-friendly auth method for a user row:
+     * "guest", "google", "email", or "email + google" when both are linked.
+     */
+    private String deriveProvider(User u) {
+        if ("GUEST".equals(u.getRole())) return "guest";
+        List<String> p = u.getProviders();
+        boolean google = (p != null && p.contains("google")) || u.getGoogleId() != null;
+        boolean local  = p != null && p.contains("local");
+        if (google && local) return "email + google";
+        if (google) return "google";
+        return "email";
     }
 
     // ─── USERS ───────────────────────────────────────────────────────────────
@@ -127,6 +172,7 @@ public class AdminService {
             m.put("fullName",     u.getFullName());
             m.put("email",        u.getEmail());
             m.put("role",         u.getRole());
+            m.put("provider",     deriveProvider(u));
             m.put("avatarColor",  u.getAvatarColor() != null ? u.getAvatarColor() : "#4F46E5");
             m.put("isActive",     u.getIsActive() != null ? u.getIsActive() : true);
             m.put("createdAt",    u.getCreatedAt() != null ? u.getCreatedAt().toString() : "");

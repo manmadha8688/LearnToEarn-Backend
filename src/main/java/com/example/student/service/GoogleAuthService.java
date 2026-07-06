@@ -43,6 +43,7 @@ public class GoogleAuthService {
     private final JwtUtil jwtUtil;
     private final UsernameService usernameService;
     private final EmailService emailService;
+    private final LoginEventService loginEventService;
 
     @Value("${google.client-id:}")
     private String googleClientId;
@@ -51,12 +52,13 @@ public class GoogleAuthService {
 
     public GoogleAuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                              JwtUtil jwtUtil, UsernameService usernameService,
-                             EmailService emailService) {
+                             EmailService emailService, LoginEventService loginEventService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.usernameService = usernameService;
         this.emailService = emailService;
+        this.loginEventService = loginEventService;
     }
 
     public AuthResponse loginWithGoogle(String credential) {
@@ -131,6 +133,7 @@ public class GoogleAuthService {
         user.setLastLoginAt(LocalDateTime.now(IST));
         user.setLoginCount(user.getLoginCount() + 1);
         User saved = userRepository.save(user);
+        loginEventService.record(saved, "google");
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
@@ -156,6 +159,7 @@ public class GoogleAuthService {
         user.setLoginCount(1);
 
         User saved = userRepository.save(user);
+        loginEventService.record(saved, "google");
         emailService.sendWelcomeEmail(saved.getEmail(), saved.getFullName()); // best-effort, never throws
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,

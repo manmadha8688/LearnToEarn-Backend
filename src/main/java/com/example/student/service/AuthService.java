@@ -21,11 +21,12 @@ public class AuthService {
     private final OtpService otpService;
     private final EmailService emailService;
     private final UsernameService usernameService;
+    private final LoginEventService loginEventService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil, AuthenticationManager authenticationManager,
                        OtpService otpService, EmailService emailService,
-                       UsernameService usernameService) {
+                       UsernameService usernameService, LoginEventService loginEventService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
@@ -33,6 +34,7 @@ public class AuthService {
         this.otpService = otpService;
         this.emailService = emailService;
         this.usernameService = usernameService;
+        this.loginEventService = loginEventService;
     }
 
     public AuthResponse register(RegisterRequest req) {
@@ -58,9 +60,14 @@ public class AuthService {
         user.setAvatarColor("#4F46E5");
         user.setIsActive(true);
         user.setUsername(usernameService.generateUnique(req.getFullName(), email));
+        // Registration immediately signs the user in — count it as their first login
+        // so activity metrics (last login, login count, logins today) stay accurate.
+        user.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
+        user.setLoginCount(1);
 
         User saved = userRepository.save(user);
         otpService.clear(email); // clean up OTP entry after successful registration
+        loginEventService.record(saved, "register");
         emailService.sendWelcomeEmail(saved.getEmail(), saved.getFullName()); // best-effort, never throws
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
@@ -86,6 +93,7 @@ public class AuthService {
         user.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
         user.setLoginCount(user.getLoginCount() + 1);
         userRepository.save(user);
+        loginEventService.record(user, "password");
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(user.getId(), user.getFullName(), user.getEmail(), user.getRole()));
@@ -100,6 +108,7 @@ public class AuthService {
                 guest.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
                 guest.setLoginCount(guest.getLoginCount() + 1);
                 userRepository.save(guest);
+                loginEventService.record(guest, "guest");
                 String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole());
                 return new AuthResponse(token,
                         new AuthResponse.UserDto(guest.getId(), guest.getFullName(), guest.getEmail(), guest.getRole()));
@@ -122,6 +131,7 @@ public class AuthService {
         guest.setLoginCount(1);
 
         User saved = userRepository.save(guest);
+        loginEventService.record(saved, "guest");
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));

@@ -20,6 +20,21 @@ public class AdminStatsDTO {
     private long totalQuestions;
     private long totalReports;
     private long totalWalkIns;
+
+    // ── Today's activity (IST) ──
+    private long newUsersToday;
+    private long loginsToday;
+
+    // ── Reports breakdown ──
+    private long openReports;
+
+    // ── Auth provider split ──
+    private long googleUsers;   // accounts with Google linked
+    private long localUsers;    // accounts with an email/password login
+
     private List<Map<String, Object>> recentUsers;
     private List<Map<String, Object>> topSubjects;
+
+    // Last 7 days: [{ date, logins, signups }] oldest → newest
+    private List<Map<String, Object>> loginTrend;
 }
