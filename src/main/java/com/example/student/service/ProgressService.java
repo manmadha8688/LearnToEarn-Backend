@@ -16,6 +16,7 @@ import com.example.student.repository.UserSubjectBadgeRepository;
 import com.example.student.repository.UserRoadmapBadgeRepository;
 import com.example.student.repository.RoadmapRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -77,6 +78,7 @@ public class ProgressService {
      * @param quizScore the raw quiz score (e.g. 8 for 8/10). Pass 0 for non-quiz completions.
      * @return map with xpEarned and dailyBonusEarned keys
      */
+    @Transactional
     public Map<String, Object> completeConcept(String conceptId, String userId, int quizScore) {
         if (progressRepository.existsByUserIdAndConceptId(userId, conceptId)) {
             return Map.of("message", "Already completed", "conceptId", conceptId,

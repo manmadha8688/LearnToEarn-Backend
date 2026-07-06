@@ -1,9 +1,13 @@
 package com.example.student.config;
 
+import com.example.student.model.Bookmark;
 import com.example.student.model.Feedback;
 import com.example.student.model.Report;
 import com.example.student.model.RoadmapSubject;
+import com.example.student.model.User;
 import com.example.student.model.WalkIn;
+import com.example.student.repository.UserRepository;
+import com.example.student.service.UsernameService;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,15 +51,45 @@ public class DataIntegrityMigration implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataIntegrityMigration.class);
 
     private final MongoTemplate mongoTemplate;
+    private final UserRepository userRepository;
+    private final UsernameService usernameService;
 
-    public DataIntegrityMigration(MongoTemplate mongoTemplate) {
+    public DataIntegrityMigration(MongoTemplate mongoTemplate,
+                                  UserRepository userRepository,
+                                  UsernameService usernameService) {
         this.mongoTemplate = mongoTemplate;
+        this.userRepository = userRepository;
+        this.usernameService = usernameService;
     }
 
     @Override
     public void run(String... args) {
         dedupeRoadmapSubjects();
+        backfillUsernames();
         ensureIndexes();
+    }
+
+    /** Assign a unique username to every non-guest user that predates the profile feature. */
+    private void backfillUsernames() {
+        Query q = new Query(new Criteria().andOperator(
+                Criteria.where("role").ne("GUEST"),
+                new Criteria().orOperator(
+                        Criteria.where("username").exists(false),
+                        Criteria.where("username").is(null),
+                        Criteria.where("username").is(""))
+        ));
+        List<User> missing = mongoTemplate.find(q, User.class);
+        if (missing.isEmpty()) {
+            log.info("DataIntegrityMigration: usernames clean — no backfill needed");
+            return;
+        }
+        int assigned = 0;
+        for (User u : missing) {
+            u.setUsername(usernameService.generateUnique(u.getFullName(), u.getEmail()));
+            userRepository.save(u);
+            assigned++;
+        }
+        log.info("DataIntegrityMigration: backfilled {} username(s)", assigned);
     }
 
     /** Remove duplicate (roadmapId, subjectId) links, keeping the lowest orderIndex. */
@@ -97,6 +131,15 @@ public class DataIntegrityMigration implements CommandLineRunner {
         ensureSimple(Feedback.class, "createdAt", Sort.Direction.DESC);
         ensureSimple(WalkIn.class, "city", Sort.Direction.ASC);
         ensureSimple(WalkIn.class, "status", Sort.Direction.ASC);
+
+        // Unique handle for public profiles; sparse so guests (no username) don't collide on null.
+        ensureUniqueSparse(User.class, new Document("username", 1),
+                List.of("username"), "users{username}");
+
+        // One bookmark per (user, type, ref) — prevents duplicates.
+        ensureUnique(Bookmark.class,
+                new Document("userId", 1).append("type", 1).append("refId", 1),
+                List.of("userId", "type", "refId"), "bookmarks{userId,type,refId}");
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {
@@ -121,6 +164,16 @@ public class DataIntegrityMigration implements CommandLineRunner {
             log.info("DataIntegrityMigration: created unique index {}", label);
         } catch (Exception e) {
             log.warn("DataIntegrityMigration: unique index {} — {}", label, e.getMessage());
+        }
+    }
+
+    private void ensureUniqueSparse(Class<?> type, Document keyDoc, List<String> keys, String label) {
+        try {
+            if (indexExistsForKeys(type, keys)) return;
+            mongoTemplate.indexOps(type).ensureIndex(new CompoundIndexDefinition(keyDoc).unique().sparse());
+            log.info("DataIntegrityMigration: created unique sparse index {}", label);
+        } catch (Exception e) {
+            log.warn("DataIntegrityMigration: unique sparse index {} — {}", label, e.getMessage());
         }
     }
 }

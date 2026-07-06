@@ -26,6 +26,13 @@ public class User implements UserDetails {
     @Indexed(unique = true)
     private String email;
 
+    // Public handle for the shareable profile URL (/u/{username}). Unique, sparse
+    // (guests never get one). Index is created explicitly in DataIntegrityMigration.
+    private String username;
+
+    // Short public bio shown on the shareable profile. Optional.
+    private String bio;
+
     @JsonIgnore
     private String password;
 

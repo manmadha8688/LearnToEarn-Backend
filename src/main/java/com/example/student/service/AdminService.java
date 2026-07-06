@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ public class AdminService {
     private final ProblemRepository problemRepository;
     private final ReportRepository reportRepository;
     private final WalkInRepository walkInRepository;
+    private final BookmarkRepository bookmarkRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -50,7 +52,8 @@ public class AdminService {
                         MissionRepository missionRepository,
                         ProblemRepository problemRepository,
                         ReportRepository reportRepository,
-                        WalkInRepository walkInRepository) {
+                        WalkInRepository walkInRepository,
+                        BookmarkRepository bookmarkRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -67,6 +70,7 @@ public class AdminService {
         this.problemRepository = problemRepository;
         this.reportRepository = reportRepository;
         this.walkInRepository = walkInRepository;
+        this.bookmarkRepository = bookmarkRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -158,6 +162,7 @@ public class AdminService {
         );
     }
 
+    @Transactional
     public void deleteUser(String userId) {
         if (!userRepository.existsById(userId))
             throw new ResourceNotFoundException("User not found");
@@ -170,12 +175,14 @@ public class AdminService {
      * Reports, feedback and walk-ins are intentionally preserved as admin/community records.
      * Safe to call for any user id.
      */
+    @Transactional
     public void deleteUserOwnedData(String userId) {
         progressRepository.deleteByUserId(userId);
         quizAttemptRepository.deleteByUserId(userId);
         badgeRepository.deleteByUserId(userId);
         roadmapBadgeRepository.deleteByUserId(userId);
         enrollmentRepository.deleteByUserId(userId);
+        bookmarkRepository.deleteByUserId(userId);
     }
 
     // ─── SUBJECTS ────────────────────────────────────────────────────────────
@@ -235,6 +242,7 @@ public class AdminService {
         return saved;
     }
 
+    @Transactional
     public void deleteSubject(String id) {
         if (!subjectRepository.existsById(id))
             throw new ResourceNotFoundException("Subject not found");
@@ -363,6 +371,7 @@ public class AdminService {
         return updated;
     }
 
+    @Transactional
     public void deleteConcept(String id) {
         Concept c = conceptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Concept not found"));
@@ -433,6 +442,7 @@ public class AdminService {
         return saved;
     }
 
+    @Transactional
     public void deleteRoadmap(String id) {
         if (!roadmapRepository.existsById(id))
             throw new ResourceNotFoundException("Roadmap not found");

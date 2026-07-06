@@ -6,6 +6,7 @@ import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.*;
 import com.example.student.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -95,6 +96,7 @@ public class QuizService {
 
     // ─── SUBMIT ───────────────────────────────────────────────────────────────
 
+    @Transactional
     public QuizResultResponse submitQuiz(QuizSubmitRequest req, String userId) {
         String type = req.getType() == null ? "" : req.getType().toUpperCase();
         String refId = req.getRefId();

@@ -17,8 +17,12 @@ public class OtpService {
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OtpEntry> resetStore = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IpLimit> ipLimits = new ConcurrentHashMap<>();
+    // Failed verification counters per email — caps brute-force guessing of the 6-digit code.
+    private final ConcurrentHashMap<String, Integer> verifyFails = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> resetVerifyFails = new ConcurrentHashMap<>();
 
     private static final int MAX_SENDS_PER_IP_PER_HOUR = 10;
+    private static final int MAX_VERIFY_ATTEMPTS = 5;
 
     public OtpService(EmailService emailService) {
         this.emailService = emailService;
@@ -41,6 +45,7 @@ public class OtpService {
 
         String otp = String.format("%06d", new Random().nextInt(1_000_000));
         store.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
+        verifyFails.remove(email); // fresh code → reset the guess counter
         recordIpSend(clientIp);
         try {
             emailService.sendOtpEmail(email, otp);
@@ -55,9 +60,18 @@ public class OtpService {
     public boolean verifyOtp(String email, String otp) {
         OtpEntry entry = store.get(email);
         if (entry == null) return false;
-        if (entry.expiresAt().isBefore(now())) { store.remove(email); return false; }
-        if (!entry.otp().equals(otp.trim())) return false;
+        if (entry.expiresAt().isBefore(now())) { store.remove(email); verifyFails.remove(email); return false; }
+        if (!entry.otp().equals(otp.trim())) {
+            // Too many wrong guesses → invalidate the code so it can't be brute-forced.
+            // A new code must be requested (send is separately rate-limited).
+            if (verifyFails.merge(email, 1, Integer::sum) >= MAX_VERIFY_ATTEMPTS) {
+                store.remove(email);
+                verifyFails.remove(email);
+            }
+            return false;
+        }
         store.put(email, new OtpEntry(entry.otp(), entry.expiresAt(), entry.sentAt(), true));
+        verifyFails.remove(email);
         return true;
     }
 
@@ -88,6 +102,7 @@ public class OtpService {
 
         String otp = String.format("%06d", new Random().nextInt(1_000_000));
         resetStore.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
+        resetVerifyFails.remove(email); // fresh code → reset the guess counter
         recordIpSend(clientIp);
         try {
             emailService.sendPasswordResetOtpEmail(email, otp);
@@ -101,9 +116,16 @@ public class OtpService {
     public boolean verifyResetOtp(String email, String otp) {
         OtpEntry entry = resetStore.get(email);
         if (entry == null) return false;
-        if (entry.expiresAt().isBefore(now())) { resetStore.remove(email); return false; }
-        if (!entry.otp().equals(otp.trim())) return false;
+        if (entry.expiresAt().isBefore(now())) { resetStore.remove(email); resetVerifyFails.remove(email); return false; }
+        if (!entry.otp().equals(otp.trim())) {
+            if (resetVerifyFails.merge(email, 1, Integer::sum) >= MAX_VERIFY_ATTEMPTS) {
+                resetStore.remove(email);
+                resetVerifyFails.remove(email);
+            }
+            return false;
+        }
         resetStore.put(email, new OtpEntry(entry.otp(), entry.expiresAt(), entry.sentAt(), true));
+        resetVerifyFails.remove(email);
         return true;
     }
 
@@ -127,6 +149,9 @@ public class OtpService {
         ipLimits.entrySet().removeIf(e ->
             ChronoUnit.HOURS.between(e.getValue().windowStart(), now) >= 1
         );
+        // Drop orphaned guess counters for codes that are no longer active.
+        verifyFails.keySet().removeIf(k -> !store.containsKey(k));
+        resetVerifyFails.keySet().removeIf(k -> !resetStore.containsKey(k));
     }
 
     // ── IP rate limiting ─────────────────────────────────────────────

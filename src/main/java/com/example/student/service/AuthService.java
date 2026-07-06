@@ -20,16 +20,19 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final OtpService otpService;
     private final EmailService emailService;
+    private final UsernameService usernameService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil, AuthenticationManager authenticationManager,
-                       OtpService otpService, EmailService emailService) {
+                       OtpService otpService, EmailService emailService,
+                       UsernameService usernameService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.otpService = otpService;
         this.emailService = emailService;
+        this.usernameService = usernameService;
     }
 
     public AuthResponse register(RegisterRequest req) {
@@ -46,6 +49,7 @@ public class AuthService {
         user.setCollegeName(req.getCollegeName());
         user.setAvatarColor("#4F46E5");
         user.setIsActive(true);
+        user.setUsername(usernameService.generateUnique(req.getFullName(), email));
 
         User saved = userRepository.save(user);
         otpService.clear(email); // clean up OTP entry after successful registration
