@@ -35,11 +35,7 @@ public class AuthController {
     private boolean secureCookie;
 
     public AuthController(AuthService authService, GoogleAuthService googleAuthService,
-<<<<<<< HEAD
                           LoginAttemptService loginAttemptService, RateLimiterService rateLimiter) {
-=======
-                          LoginAttemptService loginAttemptService) {
->>>>>>> c27961f9349d0c97de5a2dcb6ed9abce756c9e6f
         this.authService = authService;
         this.googleAuthService = googleAuthService;
         this.loginAttemptService = loginAttemptService;

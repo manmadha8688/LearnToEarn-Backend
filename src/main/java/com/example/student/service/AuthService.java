@@ -94,11 +94,7 @@ public class AuthService {
         user.setLoginCount(user.getLoginCount() + 1);
         userRepository.save(user);
         loginEventService.record(user, "password");
-<<<<<<< HEAD
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole(), user.getTokenVersion());
-=======
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
->>>>>>> c27961f9349d0c97de5a2dcb6ed9abce756c9e6f
         return new AuthResponse(token,
                 new AuthResponse.UserDto(user.getId(), user.getFullName(), user.getEmail(), user.getRole()));
     }
@@ -113,11 +109,7 @@ public class AuthService {
                 guest.setLoginCount(guest.getLoginCount() + 1);
                 userRepository.save(guest);
                 loginEventService.record(guest, "guest");
-<<<<<<< HEAD
                 String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole(), guest.getTokenVersion());
-=======
-                String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole());
->>>>>>> c27961f9349d0c97de5a2dcb6ed9abce756c9e6f
                 return new AuthResponse(token,
                         new AuthResponse.UserDto(guest.getId(), guest.getFullName(), guest.getEmail(), guest.getRole()));
             }
@@ -140,11 +132,7 @@ public class AuthService {
 
         User saved = userRepository.save(guest);
         loginEventService.record(saved, "guest");
-<<<<<<< HEAD
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole(), saved.getTokenVersion());
-=======
-        String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole());
->>>>>>> c27961f9349d0c97de5a2dcb6ed9abce756c9e6f
         return new AuthResponse(token,
                 new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
     }
