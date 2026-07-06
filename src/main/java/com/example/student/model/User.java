@@ -39,8 +39,6 @@ public class User implements UserDetails {
     @Builder.Default
     private String role = "STUDENT";
 
-    private String collegeName;
-
     @Builder.Default
     private String avatarColor = "#4F46E5";
 

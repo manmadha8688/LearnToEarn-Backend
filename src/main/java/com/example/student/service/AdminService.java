@@ -127,7 +127,6 @@ public class AdminService {
             m.put("fullName",     u.getFullName());
             m.put("email",        u.getEmail());
             m.put("role",         u.getRole());
-            m.put("collegeName",  u.getCollegeName() != null ? u.getCollegeName() : "");
             m.put("avatarColor",  u.getAvatarColor() != null ? u.getAvatarColor() : "#4F46E5");
             m.put("isActive",     u.getIsActive() != null ? u.getIsActive() : true);
             m.put("createdAt",    u.getCreatedAt() != null ? u.getCreatedAt().toString() : "");
@@ -142,18 +141,28 @@ public class AdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        List<Map<String, Object>> subjectProgress = subjectRepository.findAll().stream()
-                .filter(s -> conceptRepository.countBySubjectId(s.getId()) > 0)
+        // One query for all of this user's progress, grouped in memory by subject
+        // (replaces the previous N × countByUserIdAndSubjectId round-trips).
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
+
+        List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
+
+        List<Map<String, Object>> subjectProgress = subjects.stream()
                 .map(s -> {
-                    int total = (int) conceptRepository.countBySubjectId(s.getId());
-                    long completed = progressRepository.countByUserIdAndSubjectId(userId, s.getId());
-                    double pct = total > 0
-                            ? Math.round((completed * 100.0 / total) * 10) / 10.0 : 0;
+                    // Concept counts served from Caffeine (warmed on startup) — no per-subject DB call.
+                    long total = cacheService.get("concepts", "count:" + s.getId(),
+                            () -> conceptRepository.countBySubjectId(s.getId()));
+                    if (total == 0) return null;
+                    long completed = completedBySubject.getOrDefault(s.getId(), 0L);
+                    double pct = Math.round((completed * 100.0 / total) * 10) / 10.0;
                     return Map.<String, Object>of(
                             "subjectId", s.getId(), "title", s.getTitle(),
-                            "icon", s.getIcon(), "total", total,
+                            "icon", s.getIcon(), "total", (int) total,
                             "completed", completed, "percentage", pct);
-                }).collect(Collectors.toList());
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
 
         return Map.of(
                 "user", Map.of("id", user.getId(), "fullName", user.getFullName(),

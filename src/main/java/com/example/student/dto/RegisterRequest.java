@@ -23,6 +23,4 @@ public class RegisterRequest {
         message = "Password must contain at least one uppercase letter, one number, and one special character"
     )
     private String password;
-
-    private String collegeName;
 }

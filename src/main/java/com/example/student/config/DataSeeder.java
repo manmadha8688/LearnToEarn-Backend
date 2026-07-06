@@ -79,7 +79,7 @@ public class DataSeeder implements CommandLineRunner {
                 User a = new User();
                 a.setFullName("Admin"); a.setEmail("admin@demo.com");
                 a.setPassword(passwordEncoder.encode("***REMOVED***"));
-                a.setRole("ADMIN"); a.setCollegeName("Platform");
+                a.setRole("ADMIN");
                 a.setAvatarColor("#4F46E5"); a.setIsActive(true);
                 userRepository.save(a);
             }

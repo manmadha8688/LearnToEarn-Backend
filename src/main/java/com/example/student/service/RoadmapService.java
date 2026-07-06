@@ -99,19 +99,31 @@ public class RoadmapService {
         List<RoadmapSubject> roadmapSubjects =
                 roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(roadmapId);
 
-        List<String> subjectIds = roadmapSubjects.stream()
-                .map(rs -> rs.getSubject().getId())
-                .collect(Collectors.toList());
-
         Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
-                .filter(p -> subjectIds.contains(p.getSubjectId()))
                 .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
 
         Set<String> badgedSubjectIds = badgeRepository.findByUserId(userId).stream()
                 .map(UserSubjectBadge::getSubjectId)
-                .filter(subjectIds::contains)
                 .collect(Collectors.toSet());
 
+        Optional<UserRoadmapEnrollment> enr =
+                enrollmentRepository.findByUserIdAndRoadmapId(userId, roadmapId);
+
+        return buildRoadmapDetail(roadmap, roadmapSubjects, completedBySubject, badgedSubjectIds,
+                enr.isPresent(), enr.map(UserRoadmapEnrollment::isPaused).orElse(false));
+    }
+
+    /**
+     * Assemble a RoadmapDetailDTO from already-fetched data. The user-wide progress and
+     * badge maps are passed in so callers (single detail vs. the enrolled list) can batch
+     * those queries once instead of re-running findByUserId per roadmap.
+     */
+    private RoadmapDetailDTO buildRoadmapDetail(Roadmap roadmap,
+                                                List<RoadmapSubject> roadmapSubjects,
+                                                Map<String, Long> completedBySubject,
+                                                Set<String> badgedSubjectIds,
+                                                boolean enrolled,
+                                                boolean paused) {
         List<RoadmapDetailDTO.SubjectProgress> subjects = roadmapSubjects.stream().map(rs -> {
             Subject s = rs.getSubject();
             long total = cacheService.get("concepts", "count:" + s.getId(),
@@ -134,10 +146,6 @@ public class RoadmapService {
                         .mapToDouble(RoadmapDetailDTO.SubjectProgress::getPercentage)
                         .average().orElse(0)
                 : 0;
-        java.util.Optional<UserRoadmapEnrollment> enr =
-                enrollmentRepository.findByUserIdAndRoadmapId(userId, roadmapId);
-        boolean enrolled = enr.isPresent();
-        boolean paused   = enr.map(UserRoadmapEnrollment::isPaused).orElse(false);
 
         RoadmapDetailDTO dto = new RoadmapDetailDTO();
         dto.setId(roadmap.getId());
@@ -191,8 +199,31 @@ public class RoadmapService {
     }
 
     public List<RoadmapDetailDTO> getEnrolledRoadmaps(String userId) {
-        return enrollmentRepository.findByUserId(userId).stream()
-                .map(e -> getRoadmapDetail(e.getRoadmapId(), userId))
+        List<UserRoadmapEnrollment> enrollments = enrollmentRepository.findByUserId(userId);
+        if (enrollments.isEmpty()) return List.of();
+
+        // Batch the two user-wide reads ONCE, instead of re-running them per roadmap.
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+                .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
+        Set<String> badgedSubjectIds = badgeRepository.findByUserId(userId).stream()
+                .map(UserSubjectBadge::getSubjectId)
+                .collect(Collectors.toSet());
+
+        List<String> roadmapIds = enrollments.stream()
+                .map(UserRoadmapEnrollment::getRoadmapId)
                 .collect(Collectors.toList());
+        Map<String, Roadmap> roadmapsById = new HashMap<>();
+        roadmapRepository.findAllById(roadmapIds).forEach(r -> roadmapsById.put(r.getId(), r));
+
+        List<RoadmapDetailDTO> result = new ArrayList<>();
+        for (UserRoadmapEnrollment e : enrollments) {
+            Roadmap roadmap = roadmapsById.get(e.getRoadmapId());
+            if (roadmap == null) continue; // enrollment points to a deleted roadmap — skip
+            List<RoadmapSubject> roadmapSubjects =
+                    roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(e.getRoadmapId());
+            result.add(buildRoadmapDetail(roadmap, roadmapSubjects,
+                    completedBySubject, badgedSubjectIds, true, e.isPaused()));
+        }
+        return result;
     }
 }

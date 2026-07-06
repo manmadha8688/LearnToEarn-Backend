@@ -46,7 +46,6 @@ public class AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setRole("STUDENT");
-        user.setCollegeName(req.getCollegeName());
         user.setAvatarColor("#4F46E5");
         user.setIsActive(true);
         user.setUsername(usernameService.generateUnique(req.getFullName(), email));

@@ -7,6 +7,7 @@ import com.example.student.dto.AdminSubjectRequest;
 import com.example.student.model.Mission;
 import com.example.student.model.ProblemQuestion;
 import com.example.student.service.AdminService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -54,12 +55,12 @@ public class AdminController {
     }
 
     @PostMapping("/subjects")
-    public ResponseEntity<?> createSubject(@RequestBody AdminSubjectRequest req) {
+    public ResponseEntity<?> createSubject(@Valid @RequestBody AdminSubjectRequest req) {
         return ResponseEntity.ok(adminService.createSubject(req));
     }
 
     @PutMapping("/subjects/{id}")
-    public ResponseEntity<?> updateSubject(@PathVariable String id, @RequestBody AdminSubjectRequest req) {
+    public ResponseEntity<?> updateSubject(@PathVariable String id, @Valid @RequestBody AdminSubjectRequest req) {
         return ResponseEntity.ok(adminService.updateSubject(id, req));
     }
 
@@ -76,12 +77,12 @@ public class AdminController {
     }
 
     @PostMapping("/concepts")
-    public ResponseEntity<?> createConcept(@RequestBody AdminConceptRequest req) {
+    public ResponseEntity<?> createConcept(@Valid @RequestBody AdminConceptRequest req) {
         return ResponseEntity.ok(adminService.createConcept(req));
     }
 
     @PutMapping("/concepts/{id}")
-    public ResponseEntity<?> updateConcept(@PathVariable String id, @RequestBody AdminConceptRequest req) {
+    public ResponseEntity<?> updateConcept(@PathVariable String id, @Valid @RequestBody AdminConceptRequest req) {
         return ResponseEntity.ok(adminService.updateConcept(id, req));
     }
 
@@ -97,12 +98,12 @@ public class AdminController {
     }
 
     @PostMapping("/roadmaps")
-    public ResponseEntity<?> createRoadmap(@RequestBody AdminRoadmapRequest req) {
+    public ResponseEntity<?> createRoadmap(@Valid @RequestBody AdminRoadmapRequest req) {
         return ResponseEntity.ok(adminService.createRoadmap(req));
     }
 
     @PutMapping("/roadmaps/{id}")
-    public ResponseEntity<?> updateRoadmap(@PathVariable String id, @RequestBody AdminRoadmapRequest req) {
+    public ResponseEntity<?> updateRoadmap(@PathVariable String id, @Valid @RequestBody AdminRoadmapRequest req) {
         return ResponseEntity.ok(adminService.updateRoadmap(id, req));
     }
 
@@ -157,13 +158,13 @@ public class AdminController {
     }
 
     @PostMapping("/questions")
-    public ResponseEntity<?> createQuestion(@RequestBody AdminQuestionRequest req) {
+    public ResponseEntity<?> createQuestion(@Valid @RequestBody AdminQuestionRequest req) {
         return ResponseEntity.ok(adminService.createQuestion(req));
     }
 
     @PutMapping("/questions/{id}")
     public ResponseEntity<?> updateQuestion(@PathVariable String id,
-                                             @RequestBody AdminQuestionRequest req) {
+                                             @Valid @RequestBody AdminQuestionRequest req) {
         return ResponseEntity.ok(adminService.updateQuestion(id, req));
     }
 

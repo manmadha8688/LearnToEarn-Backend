@@ -125,7 +125,6 @@ public class AuthController {
         res.put("username",      user.getUsername());
         res.put("bio",           user.getBio() != null ? user.getBio() : "");
         res.put("role",          user.getRole());
-        res.put("collegeName",   user.getCollegeName() != null ? user.getCollegeName() : "");
         res.put("avatarColor",   user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
         res.put("xp",            user.getXp());
         res.put("level",         user.getLevel());

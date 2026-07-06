@@ -11,7 +11,7 @@ import java.util.Set;
 @Service
 public class BookmarkService {
 
-    private static final Set<String> ALLOWED_TYPES = Set.of("SUBJECT", "ROADMAP", "MISSION", "PROBLEM");
+    private static final Set<String> ALLOWED_TYPES = Set.of("SUBJECT", "ROADMAP", "MISSION", "PROBLEM", "AITOOL", "GUIDE");
 
     private final BookmarkRepository bookmarkRepository;
 

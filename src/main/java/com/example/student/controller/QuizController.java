@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.dto.QuizSubmitRequest;
 import com.example.student.model.User;
 import com.example.student.service.QuizService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,7 +38,7 @@ public class QuizController {
     }
 
     @PostMapping("/submit")
-    public ResponseEntity<?> submit(@RequestBody QuizSubmitRequest req,
+    public ResponseEntity<?> submit(@Valid @RequestBody QuizSubmitRequest req,
                                      @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(quizService.submitQuiz(req, user.getId()));
     }

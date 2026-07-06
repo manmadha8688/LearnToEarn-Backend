@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.dto.ProfileUpdateRequest;
 import com.example.student.model.User;
 import com.example.student.service.ProfileService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class ProfileController {
     // Authenticated — update own profile (settings page).
     @PutMapping("/profile/me")
     public ResponseEntity<?> updateOwn(@AuthenticationPrincipal User user,
-                                       @RequestBody ProfileUpdateRequest req) {
+                                       @Valid @RequestBody ProfileUpdateRequest req) {
         try {
             User updated = profileService.updateOwnProfile(user, req);
             Map<String, Object> res = new LinkedHashMap<>();

@@ -4,6 +4,7 @@ import com.example.student.model.User;
 import com.example.student.model.WalkIn;
 import com.example.student.service.WalkInService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -76,11 +77,14 @@ public class WalkInController {
         }
     }
 
-    // ── Admin: get all (including expired) ───────────────────
+    // ── Admin: get all (including expired), paginated ────────
     @GetMapping("/api/admin/walkins")
-    public ResponseEntity<List<WalkIn>> getAllWalkIns(@AuthenticationPrincipal User user) {
+    public ResponseEntity<Page<WalkIn>> getAllWalkIns(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User user) {
         if (user == null || !"ADMIN".equals(user.getRole()))
             return ResponseEntity.status(403).build();
-        return ResponseEntity.ok(walkInService.getAll());
+        return ResponseEntity.ok(walkInService.getAllPaged(page, size));
     }
 }
