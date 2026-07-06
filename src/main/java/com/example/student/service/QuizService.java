@@ -301,7 +301,7 @@ public class QuizService {
         for (String subjectId : subjectIds) {
             UserSubjectBadge badge = badgeMap.get(subjectId);
             // Concept counts served from Caffeine (warmed on startup, never a DB call)
-            long conceptCount = cacheService.get("concepts", "count:" + subjectId,
+            long conceptCount = cacheService.getLong("concepts", "count:" + subjectId,
                     () -> (long) conceptRepo.countBySubjectId(subjectId));
             long completed = progressCounts.getOrDefault(subjectId, 0L);
 

@@ -197,7 +197,7 @@ public class AdminService {
         List<Map<String, Object>> subjectProgress = subjects.stream()
                 .map(s -> {
                     // Concept counts served from Caffeine (warmed on startup) — no per-subject DB call.
-                    long total = cacheService.get("concepts", "count:" + s.getId(),
+                    long total = cacheService.getLong("concepts", "count:" + s.getId(),
                             () -> conceptRepository.countBySubjectId(s.getId()));
                     if (total == 0) return null;
                     long completed = completedBySubject.getOrDefault(s.getId(), 0L);

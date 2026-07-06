@@ -105,7 +105,7 @@ public class SubjectService {
 
     private SubjectDTO toDTO(Subject s, Map<String, Long> completedBySubject) {
         // Concept count is static — safe to cache; per-user progress batched above
-        long total = cacheService.get("concepts", "count:" + s.getId(),
+        long total = cacheService.getLong("concepts", "count:" + s.getId(),
                 () -> conceptRepository.countBySubjectId(s.getId()));
         long completed = completedBySubject.getOrDefault(s.getId(), 0L);
         SubjectDTO dto = new SubjectDTO();

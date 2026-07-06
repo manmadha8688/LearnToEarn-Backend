@@ -158,7 +158,7 @@ public class ProgressService {
         // Single progress fetch — reused for streak, counts, and per-subject breakdown
         List<UserConceptProgress> allProgress = progressRepository.findByUserId(userId);
         long completedConcepts = allProgress.size();
-        long totalConcepts = cacheService.get("concepts", "total", conceptRepository::count);
+        long totalConcepts = cacheService.getLong("concepts", "total", conceptRepository::count);
         double percentage = totalConcepts > 0
                 ? Math.round((completedConcepts * 100.0 / totalConcepts) * 10) / 10.0
                 : 0;
@@ -195,7 +195,7 @@ public class ProgressService {
         List<ProgressSummaryDTO.SubjectProgress> subjectProgress = subjects.stream()
                 .map(s -> {
                     // Concept count from Caffeine (0 DB — warmed on startup)
-                    long total = cacheService.get("concepts", "count:" + s.getId(),
+                    long total = cacheService.getLong("concepts", "count:" + s.getId(),
                             () -> conceptRepository.countBySubjectId(s.getId()));
                     if (total == 0) return null;
                     long completed = completedBySubject.getOrDefault(s.getId(), 0L);

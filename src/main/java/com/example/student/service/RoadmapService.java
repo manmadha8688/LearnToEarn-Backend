@@ -126,7 +126,7 @@ public class RoadmapService {
                                                 boolean paused) {
         List<RoadmapDetailDTO.SubjectProgress> subjects = roadmapSubjects.stream().map(rs -> {
             Subject s = rs.getSubject();
-            long total = cacheService.get("concepts", "count:" + s.getId(),
+            long total = cacheService.getLong("concepts", "count:" + s.getId(),
                     () -> conceptRepository.countBySubjectId(s.getId()));
             long completed = completedBySubject.getOrDefault(s.getId(), 0L);
             double pct = total > 0

@@ -91,6 +91,21 @@ public class CacheService {
         return value;
     }
 
+    /**
+     * Numeric-safe variant of {@link #get}. The Redis JSON serializer does not tag type
+     * info for final classes (Long is final), so a cached count round-trips back as an
+     * Integer. Reading it straight into a {@code long} would insert a checked cast to
+     * Long and blow up with a ClassCastException the moment the value comes from Redis
+     * (L2) rather than Caffeine (L1). Reading it as a {@link Number} tolerates either box
+     * type, so this is safe for both freshly-written and previously-cached values.
+     */
+    public long getLong(String cacheName, String key, Supplier<Long> dbSupplier) {
+        // Force T=Object so the call site never emits a checkcast to Long.
+        Supplier<Object> objSupplier = dbSupplier::get;
+        Object hit = get(cacheName, key, objSupplier);
+        return hit instanceof Number ? ((Number) hit).longValue() : 0L;
+    }
+
     /** Evict a single key from both cache levels. */
     public void evict(String cacheName, String key) {
         Cache<String, Object> caffeine = caffeineCaches.get(cacheName);
