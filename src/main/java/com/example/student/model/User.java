@@ -76,6 +76,12 @@ public class User implements UserDetails {
     @Builder.Default
     private int loginCount = 0;
 
+    // Bumped on logout and password reset. Embedded in the JWT at issue time and
+    // re-checked on every request, so old tokens stop working immediately (revocation)
+    // instead of staying valid until their 24h expiry.
+    @Builder.Default
+    private long tokenVersion = 0L;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));

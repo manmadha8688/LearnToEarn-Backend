@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Random;
+import java.security.SecureRandom;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -23,6 +23,9 @@ public class OtpService {
 
     private static final int MAX_SENDS_PER_IP_PER_HOUR = 10;
     private static final int MAX_VERIFY_ATTEMPTS = 5;
+
+    // Cryptographically strong RNG so 6-digit OTPs are not predictable.
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public OtpService(EmailService emailService) {
         this.emailService = emailService;
@@ -43,7 +46,7 @@ public class OtpService {
             if (cooldown > 0) return cooldown;
         }
 
-        String otp = String.format("%06d", new Random().nextInt(1_000_000));
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         store.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
         verifyFails.remove(email); // fresh code → reset the guess counter
         recordIpSend(clientIp);
@@ -100,7 +103,7 @@ public class OtpService {
             if (cooldown > 0) return cooldown;
         }
 
-        String otp = String.format("%06d", new Random().nextInt(1_000_000));
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         resetStore.put(email, new OtpEntry(otp, now.plusMinutes(10), now, false));
         resetVerifyFails.remove(email); // fresh code → reset the guess counter
         recordIpSend(clientIp);

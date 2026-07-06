@@ -5,6 +5,7 @@ import com.example.student.dto.LoginRequest;
 import com.example.student.dto.RegisterRequest;
 import com.example.student.model.User;
 import com.example.student.security.LoginAttemptService;
+import com.example.student.security.RateLimiterService;
 import com.example.student.service.AuthService;
 import com.example.student.service.GoogleAuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,15 +29,21 @@ public class AuthController {
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
     private final LoginAttemptService loginAttemptService;
+    private final RateLimiterService rateLimiter;
 
     @Value("${app.cookie.secure:true}")
     private boolean secureCookie;
 
     public AuthController(AuthService authService, GoogleAuthService googleAuthService,
+<<<<<<< HEAD
+                          LoginAttemptService loginAttemptService, RateLimiterService rateLimiter) {
+=======
                           LoginAttemptService loginAttemptService) {
+>>>>>>> c27961f9349d0c97de5a2dcb6ed9abce756c9e6f
         this.authService = authService;
         this.googleAuthService = googleAuthService;
         this.loginAttemptService = loginAttemptService;
+        this.rateLimiter = rateLimiter;
     }
 
     private void setJwtCookie(HttpServletResponse response, String token) {
@@ -64,7 +71,14 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest req, HttpServletResponse response) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req,
+                                      HttpServletRequest request, HttpServletResponse response) {
+        long retryAfter = rateLimiter.hit("register", getClientIp(request), 10, 3600);
+        if (retryAfter > 0) {
+            return ResponseEntity.status(429).body(Map.of(
+                "error", "Too many attempts. Please try again later.",
+                "retryAfter", retryAfter));
+        }
         AuthResponse auth = authService.register(req);
         setJwtCookie(response, auth.getToken());
         return ResponseEntity.ok(auth);
@@ -126,8 +140,18 @@ public class AuthController {
     }
 
     @PostMapping("/guest")
-    public ResponseEntity<AuthResponse> guest(@RequestBody(required = false) java.util.Map<String, String> body, HttpServletResponse response) {
+    public ResponseEntity<?> guest(@RequestBody(required = false) java.util.Map<String, String> body,
+                                   HttpServletRequest request, HttpServletResponse response) {
         String guestId = body != null ? body.get("guestId") : null;
+        // Only throttle brand-new guest creation; returning users reuse their device id.
+        if (guestId == null || guestId.isBlank()) {
+            long retryAfter = rateLimiter.hit("guest", getClientIp(request), 20, 3600);
+            if (retryAfter > 0) {
+                return ResponseEntity.status(429).body(Map.of(
+                    "error", "Too many guest sessions from this network. Please try again later.",
+                    "retryAfter", retryAfter));
+            }
+        }
         AuthResponse auth = authService.guestLogin(guestId);
         setJwtCookie(response, auth.getToken());
         return ResponseEntity.ok(auth);

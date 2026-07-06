@@ -33,11 +33,14 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
 
         String normalized = email.trim().toLowerCase();
+        // Uniform response: never reveal whether an account exists (anti-enumeration).
+        // A reset code is only actually mailed to eligible (non-guest) accounts, but the
+        // caller always sees the same "if it exists, we've sent a code" message.
+        String neutral = "If an account exists for that email, a reset code has been sent.";
         User user = userRepository.findByEmail(normalized).orElse(null);
-        if (user == null)
-            return ResponseEntity.status(404).body(Map.of("error", "No account found with this email."));
-        if ("GUEST".equals(user.getRole()))
-            return ResponseEntity.badRequest().body(Map.of("error", "Guest accounts cannot reset password. Please register instead."));
+        boolean eligible = user != null && !"GUEST".equals(user.getRole());
+        if (!eligible)
+            return ResponseEntity.ok(Map.of("message", neutral));
 
         try {
             long cooldown = otpService.sendResetOtp(normalized, getClientIp(request));
@@ -46,7 +49,7 @@ public class PasswordResetController {
                     "error", "Please wait before requesting another OTP.",
                     "retryAfter", cooldown
                 ));
-            return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+            return ResponseEntity.ok(Map.of("message", neutral));
         } catch (RuntimeException e) {
             return ResponseEntity.status(429).body(Map.of("error", e.getMessage()));
         }
@@ -60,10 +63,11 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body(Map.of("error", "Email and OTP are required"));
 
         String normalized = email.trim().toLowerCase();
-        if (!userRepository.existsByEmail(normalized))
-            return ResponseEntity.status(404).body(Map.of("error", "No account found with this email."));
-
-        boolean ok = otpService.verifyResetOtp(normalized, otp.trim());
+        // Same generic failure for unknown email and wrong/expired code (anti-enumeration).
+        // OTPs are only ever issued to real accounts, so an unknown email simply has no
+        // valid code to match.
+        boolean ok = userRepository.existsByEmail(normalized)
+                && otpService.verifyResetOtp(normalized, otp.trim());
         if (!ok)
             return ResponseEntity.status(400).body(Map.of("error", "Invalid or expired OTP. Please try again."));
 

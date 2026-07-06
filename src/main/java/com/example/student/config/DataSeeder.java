@@ -71,17 +71,35 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    // ─── Admin ───────────────────────────────────────────────────────────────
+    // ─── Admin (local/dev only — skipped in prod profile) ────────────────────
     private void seedAdmin() {
-        userRepository.findByEmail("admin@demo.com").ifPresentOrElse(
-            u -> { if (!Boolean.TRUE.equals(u.getIsActive())) { u.setIsActive(true); userRepository.save(u); } },
+        ensureAdmin("admin@demo.com", "Admin", "***REMOVED***");
+        ensureAdmin("admin8688@gmail.com", "Main Admin", "***REMOVED***");
+    }
+
+    private void ensureAdmin(String email, String fullName, String rawPassword) {
+        userRepository.findByEmail(email).ifPresentOrElse(
+            u -> {
+                if (!Boolean.TRUE.equals(u.getIsActive())) {
+                    u.setIsActive(true);
+                    userRepository.save(u);
+                }
+                if (!"ADMIN".equals(u.getRole())) {
+                    u.setRole("ADMIN");
+                    userRepository.save(u);
+                }
+            },
             () -> {
                 User a = new User();
-                a.setFullName("Admin"); a.setEmail("admin@demo.com");
-                a.setPassword(passwordEncoder.encode("***REMOVED***"));
+                a.setFullName(fullName);
+                a.setEmail(email);
+                a.setPassword(passwordEncoder.encode(rawPassword));
                 a.setRole("ADMIN");
-                a.setAvatarColor("#4F46E5"); a.setIsActive(true);
+                a.setProviders(new java.util.ArrayList<>(java.util.List.of("local")));
+                a.setAvatarColor("#4F46E5");
+                a.setIsActive(true);
                 userRepository.save(a);
+                log.info("DataSeeder: created admin {}", email);
             }
         );
     }

@@ -67,6 +67,13 @@ public class JwtFilter extends OncePerRequestFilter {
                     chain.doFilter(request, response);
                     return;
                 }
+                // Revocation check: a token minted before the user's last logout /
+                // password reset carries a stale version and is rejected immediately.
+                if (userDetails instanceof com.example.student.model.User u
+                        && jwtUtil.extractTokenVersion(token) != u.getTokenVersion()) {
+                    chain.doFilter(request, response);
+                    return;
+                }
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
