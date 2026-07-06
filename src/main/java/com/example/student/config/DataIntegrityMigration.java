@@ -66,7 +66,35 @@ public class DataIntegrityMigration implements CommandLineRunner {
     public void run(String... args) {
         dedupeRoadmapSubjects();
         backfillUsernames();
+        backfillProviders();
         ensureIndexes();
+    }
+
+    /**
+     * Existing non-guest accounts predate multi-provider auth — they were all created with
+     * email + password, so mark them as local-provider accounts. Idempotent: only touches
+     * users whose providers list is missing/empty.
+     */
+    private void backfillProviders() {
+        Query q = new Query(new Criteria().andOperator(
+                Criteria.where("role").ne("GUEST"),
+                new Criteria().orOperator(
+                        Criteria.where("providers").exists(false),
+                        Criteria.where("providers").is(null),
+                        Criteria.where("providers").size(0))
+        ));
+        List<User> missing = mongoTemplate.find(q, User.class);
+        if (missing.isEmpty()) {
+            log.info("DataIntegrityMigration: providers clean — no backfill needed");
+            return;
+        }
+        int assigned = 0;
+        for (User u : missing) {
+            u.setProviders(new ArrayList<>(List.of("local")));
+            userRepository.save(u);
+            assigned++;
+        }
+        log.info("DataIntegrityMigration: backfilled providers=[local] for {} user(s)", assigned);
     }
 
     /** Assign a unique username to every non-guest user that predates the profile feature. */
@@ -135,6 +163,10 @@ public class DataIntegrityMigration implements CommandLineRunner {
         // Unique handle for public profiles; sparse so guests (no username) don't collide on null.
         ensureUniqueSparse(User.class, new Document("username", 1),
                 List.of("username"), "users{username}");
+
+        // One Google account maps to one user; sparse so non-Google users don't collide on null.
+        ensureUniqueSparse(User.class, new Document("googleId", 1),
+                List.of("googleId"), "users{googleId}");
 
         // One bookmark per (user, type, ref) — prevents duplicates.
         ensureUnique(Bookmark.class,

@@ -6,6 +6,7 @@ import com.example.student.dto.RegisterRequest;
 import com.example.student.model.User;
 import com.example.student.security.LoginAttemptService;
 import com.example.student.service.AuthService;
+import com.example.student.service.GoogleAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -25,13 +26,16 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
     private final LoginAttemptService loginAttemptService;
 
     @Value("${app.cookie.secure:true}")
     private boolean secureCookie;
 
-    public AuthController(AuthService authService, LoginAttemptService loginAttemptService) {
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService,
+                          LoginAttemptService loginAttemptService) {
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
         this.loginAttemptService = loginAttemptService;
     }
 
@@ -96,6 +100,31 @@ public class AuthController {
         return request.getRemoteAddr();
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<?> google(@RequestBody Map<String, String> body,
+                                    HttpServletRequest request, HttpServletResponse response) {
+        String ip = getClientIp(request);
+        // Reuse the IP-based limiter (keyed on a fixed marker) so a flood of bad tokens
+        // from one IP is throttled the same way repeated failed logins are.
+        long lockedFor = loginAttemptService.blockedForSeconds("google", ip);
+        if (lockedFor > 0) {
+            return ResponseEntity.status(429).body(Map.of(
+                "error", "Too many attempts. Please try again later.",
+                "retryAfter", lockedFor));
+        }
+
+        String credential = body != null ? body.get("credential") : null;
+        try {
+            AuthResponse auth = googleAuthService.loginWithGoogle(credential);
+            loginAttemptService.reset("google", ip);
+            setJwtCookie(response, auth.getToken());
+            return ResponseEntity.ok(auth);
+        } catch (RuntimeException e) {
+            loginAttemptService.recordFailure("google", ip);
+            throw e; // GlobalExceptionHandler → 400 with the user-safe message
+        }
+    }
+
     @PostMapping("/guest")
     public ResponseEntity<AuthResponse> guest(@RequestBody(required = false) java.util.Map<String, String> body, HttpServletResponse response) {
         String guestId = body != null ? body.get("guestId") : null;
@@ -125,6 +154,7 @@ public class AuthController {
         res.put("username",      user.getUsername());
         res.put("bio",           user.getBio() != null ? user.getBio() : "");
         res.put("role",          user.getRole());
+        res.put("providers",     user.getProviders() != null ? user.getProviders() : java.util.List.of());
         res.put("avatarColor",   user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
         res.put("xp",            user.getXp());
         res.put("level",         user.getLevel());

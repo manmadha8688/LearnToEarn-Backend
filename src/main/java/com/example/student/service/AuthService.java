@@ -39,13 +39,22 @@ public class AuthService {
         String email = req.getEmail().trim().toLowerCase();
         if (!otpService.isVerified(email))
             throw new RuntimeException("Email not verified. Please verify your email with OTP first.");
-        if (userRepository.existsByEmail(email))
+
+        java.util.Optional<User> existing = userRepository.findByEmail(email);
+        if (existing.isPresent()) {
+            User u = existing.get();
+            // One email = one account. If it's a Google-only account, guide them to Google.
+            if (isGoogleOnly(u))
+                throw new RuntimeException("This account uses Google Sign-In. Please continue with Google.");
             throw new RuntimeException("Email already registered");
+        }
+
         User user = new User();
         user.setFullName(req.getFullName());
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setRole("STUDENT");
+        user.setProviders(new java.util.ArrayList<>(java.util.List.of("local")));
         user.setAvatarColor("#4F46E5");
         user.setIsActive(true);
         user.setUsername(usernameService.generateUnique(req.getFullName(), email));
@@ -62,6 +71,14 @@ public class AuthService {
         // Normalise to match how emails are stored at registration (trimmed + lowercase),
         // so login is not case-sensitive.
         String email = req.getEmail() == null ? "" : req.getEmail().trim().toLowerCase();
+
+        // Block password login for accounts that only linked a social provider (no password set),
+        // with a clear message instead of a generic "invalid credentials".
+        userRepository.findByEmail(email).ifPresent(u -> {
+            if (isGoogleOnly(u))
+                throw new RuntimeException("This account uses Google Sign-In. Please continue with Google.");
+        });
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, req.getPassword()));
         User user = userRepository.findByEmail(email)
@@ -122,6 +139,16 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    /**
+     * True when the account can only sign in through a social provider (e.g. Google) and has
+     * no usable local password — i.e. providers contains a social provider but not "local".
+     */
+    private boolean isGoogleOnly(User user) {
+        java.util.List<String> providers = user.getProviders();
+        if (providers == null || providers.isEmpty()) return false;
+        return !providers.contains("local") && providers.contains("google");
+    }
+
     public void resetPassword(String email, String newPassword) {
         if (!otpService.isResetVerified(email))
             throw new RuntimeException("Email not verified. Please verify OTP first.");
@@ -130,6 +157,8 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         if ("GUEST".equals(user.getRole()))
             throw new RuntimeException("Guest accounts cannot reset password.");
+        if (isGoogleOnly(user))
+            throw new RuntimeException("This account uses Google Sign-In. Please continue with Google.");
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);

@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -33,8 +34,19 @@ public class User implements UserDetails {
     // Short public bio shown on the shareable profile. Optional.
     private String bio;
 
+    // Password hash for local (email + password) auth. NULL for accounts created
+    // via a social provider only (e.g. Google) — those users cannot use password login.
     @JsonIgnore
     private String password;
+
+    // Stable Google account identifier (the "sub" claim). Sparse-unique index created
+    // in DataIntegrityMigration. NULL for accounts that never linked Google.
+    private String googleId;
+
+    // Auth methods linked to this single account: "local", "google" (future: "github", "microsoft").
+    // One email = one account; providers accumulate here as the user links more methods.
+    @Builder.Default
+    private List<String> providers = new ArrayList<>();
 
     @Builder.Default
     private String role = "STUDENT";
