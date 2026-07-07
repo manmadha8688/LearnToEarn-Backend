@@ -87,6 +87,10 @@ public class User implements UserDetails {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
+    // NOTE: getUsername() is the Spring Security login identifier (email), so it shadows
+    // the Lombok getter for the `username` field. Read the public profile handle via this.
+    public String getPublicUsername() { return username; }
+
     @Override public String getUsername() { return email; }
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }

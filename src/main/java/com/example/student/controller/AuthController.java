@@ -171,7 +171,7 @@ public class AuthController {
         res.put("id",            user.getId());
         res.put("fullName",      user.getFullName());
         res.put("email",         user.getEmail());
-        res.put("username",      user.getUsername());
+        res.put("username",      user.getPublicUsername());
         res.put("bio",           user.getBio() != null ? user.getBio() : "");
         res.put("role",          user.getRole());
         res.put("providers",     user.getProviders() != null ? user.getProviders() : java.util.List.of());

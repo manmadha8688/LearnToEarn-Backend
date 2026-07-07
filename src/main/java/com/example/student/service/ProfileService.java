@@ -84,7 +84,7 @@ public class ProfileService {
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("fullName", user.getFullName());
-        res.put("username", user.getUsername());
+        res.put("username", user.getPublicUsername());
         res.put("avatarColor", user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
         res.put("bio", user.getBio() != null ? user.getBio() : "");
         res.put("rank", user.getRank() != null ? user.getRank() : "E");
@@ -127,7 +127,7 @@ public class ProfileService {
 
         if (req.getUsername() != null) {
             String uname = req.getUsername().trim().toLowerCase();
-            if (!uname.equals(user.getUsername())) {
+            if (!uname.equals(user.getPublicUsername())) {
                 if (!usernameService.isValidFormat(uname))
                     throw new IllegalArgumentException(
                             "Username must be 3–20 characters: lowercase letters, numbers or underscore");

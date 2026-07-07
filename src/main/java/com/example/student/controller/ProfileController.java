@@ -35,7 +35,7 @@ public class ProfileController {
             User updated = profileService.updateOwnProfile(user, req);
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("fullName", updated.getFullName());
-            res.put("username", updated.getUsername());
+            res.put("username", updated.getPublicUsername());
             res.put("bio", updated.getBio() != null ? updated.getBio() : "");
             res.put("avatarColor", updated.getAvatarColor());
             return ResponseEntity.ok(res);

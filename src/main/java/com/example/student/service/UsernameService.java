@@ -39,15 +39,14 @@ public class UsernameService {
     }
 
     /**
-     * Build a unique username from a preferred base (e.g. full name, else email local part).
-     * Falls back to "hunter" and appends numeric suffixes until free.
+     * Build a unique username. Prefers the email local part (e.g. john.doe@gmail.com →
+     * john_doe) since that's the handle users expect; falls back to the preferred base
+     * (typically the full name), then "hunter". Appends numeric suffixes until free.
      */
     public String generateUnique(String preferredBase, String emailFallback) {
-        String base = slugify(preferredBase);
-        if (base.length() < MIN_LEN) {
-            String local = emailFallback == null ? "" : emailFallback.split("@")[0];
-            base = slugify(local);
-        }
+        String local = emailFallback == null ? "" : emailFallback.split("@")[0];
+        String base = slugify(local);
+        if (base.length() < MIN_LEN) base = slugify(preferredBase);
         if (base.length() < MIN_LEN) base = "hunter";
 
         if (!userRepository.existsByUsername(base)) return base;
