@@ -80,14 +80,21 @@ public class DataSeeder implements CommandLineRunner {
     private void ensureAdmin(String email, String fullName, String rawPassword) {
         userRepository.findByEmail(email).ifPresentOrElse(
             u -> {
+                boolean changed = false;
                 if (!Boolean.TRUE.equals(u.getIsActive())) {
                     u.setIsActive(true);
-                    userRepository.save(u);
+                    changed = true;
                 }
                 if (!"ADMIN".equals(u.getRole())) {
                     u.setRole("ADMIN");
-                    userRepository.save(u);
+                    changed = true;
                 }
+                // Keep dev seed passwords in sync when they change (non-prod only).
+                if (!passwordEncoder.matches(rawPassword, u.getPassword())) {
+                    u.setPassword(passwordEncoder.encode(rawPassword));
+                    changed = true;
+                }
+                if (changed) userRepository.save(u);
             },
             () -> {
                 User a = new User();

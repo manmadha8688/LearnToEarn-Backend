@@ -159,12 +159,33 @@ public class AdminService {
 
     // ─── USERS ───────────────────────────────────────────────────────────────
 
-    public Page<Map<String, Object>> getUsers(int page, int size, String search) {
+    public Page<Map<String, Object>> getUsers(int page, int size, String search, String roleFilter) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<User> users = (search == null || search.isBlank())
-                ? userRepository.findAll(pageable)
-                : userRepository.findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                        search, search, pageable);
+        boolean hasSearch = search != null && !search.isBlank();
+        String filter = roleFilter == null ? "" : roleFilter.trim().toLowerCase();
+
+        Page<User> users;
+        if ("guest".equals(filter)) {
+            users = hasSearch
+                    ? userRepository.findByRoleAndFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                            "GUEST", search, search, pageable)
+                    : userRepository.findByRole("GUEST", pageable);
+        } else if ("student".equals(filter) || "registered".equals(filter)) {
+            users = hasSearch
+                    ? userRepository.findByRoleAndFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                            "STUDENT", search, search, pageable)
+                    : userRepository.findByRole("STUDENT", pageable);
+        } else if ("admin".equals(filter)) {
+            users = hasSearch
+                    ? userRepository.findByRoleAndFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                            "ADMIN", search, search, pageable)
+                    : userRepository.findByRole("ADMIN", pageable);
+        } else {
+            users = hasSearch
+                    ? userRepository.findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                            search, search, pageable)
+                    : userRepository.findAll(pageable);
+        }
 
         return users.map(u -> {
             java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();

@@ -20,6 +20,13 @@ public interface UserRepository extends MongoRepository<User, String> {
     Page<User> findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
             String name, String email, Pageable pageable);
 
+    Page<User> findByRole(String role, Pageable pageable);
+    Page<User> findByRoleNot(String role, Pageable pageable);
+    Page<User> findByRoleAndFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+            String role, String name, String email, Pageable pageable);
+    Page<User> findByRoleNotAndFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+            String role, String name, String email, Pageable pageable);
+
     // Admin dashboard metrics
     long countByCreatedAtAfter(LocalDateTime start);
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);

@@ -34,8 +34,9 @@ public class AdminController {
     public ResponseEntity<?> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(adminService.getUsers(page, size, search));
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String filter) {
+        return ResponseEntity.ok(adminService.getUsers(page, size, search, filter));
     }
 
     @GetMapping("/users/{id}/progress")
