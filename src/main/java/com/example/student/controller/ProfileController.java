@@ -38,6 +38,9 @@ public class ProfileController {
             res.put("username", updated.getPublicUsername());
             res.put("bio", updated.getBio() != null ? updated.getBio() : "");
             res.put("avatarColor", updated.getAvatarColor());
+            res.put("githubUrl", updated.getGithubUrl() != null ? updated.getGithubUrl() : "");
+            res.put("linkedinUrl", updated.getLinkedinUrl() != null ? updated.getLinkedinUrl() : "");
+            res.put("portfolioUrl", updated.getPortfolioUrl() != null ? updated.getPortfolioUrl() : "");
             return ResponseEntity.ok(res);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

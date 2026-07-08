@@ -16,4 +16,13 @@ public class ProfileUpdateRequest {
 
     @Size(max = 20)
     private String avatarColor;
+
+    @Size(max = 200)
+    private String githubUrl;
+
+    @Size(max = 200)
+    private String linkedinUrl;
+
+    @Size(max = 200)
+    private String portfolioUrl;
 }

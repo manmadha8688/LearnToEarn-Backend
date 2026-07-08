@@ -34,6 +34,11 @@ public class User implements UserDetails {
     // Short public bio shown on the shareable profile. Optional.
     private String bio;
 
+    // Career links shown on the public profile (all optional). Full https URLs.
+    private String githubUrl;
+    private String linkedinUrl;
+    private String portfolioUrl;
+
     // Password hash for local (email + password) auth. NULL for accounts created
     // via a social provider only (e.g. Google) — those users cannot use password login.
     @JsonIgnore
@@ -41,6 +46,9 @@ public class User implements UserDetails {
 
     // Stable Google account identifier (the "sub" claim). Sparse-unique index created
     // in DataIntegrityMigration. NULL for accounts that never linked Google.
+    // @JsonIgnore: never expose in any response (defense-in-depth if the entity is
+    // ever serialized directly instead of via a DTO/map).
+    @JsonIgnore
     private String googleId;
 
     // Auth methods linked to this single account: "local", "google" (future: "github", "microsoft").
@@ -79,6 +87,8 @@ public class User implements UserDetails {
     // Bumped on logout and password reset. Embedded in the JWT at issue time and
     // re-checked on every request, so old tokens stop working immediately (revocation)
     // instead of staying valid until their 24h expiry.
+    // @JsonIgnore: internal security counter — must never reach the client.
+    @JsonIgnore
     @Builder.Default
     private long tokenVersion = 0L;
 

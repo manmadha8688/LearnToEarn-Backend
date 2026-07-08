@@ -173,6 +173,9 @@ public class AuthController {
         res.put("email",         user.getEmail());
         res.put("username",      user.getPublicUsername());
         res.put("bio",           user.getBio() != null ? user.getBio() : "");
+        res.put("githubUrl",     user.getGithubUrl() != null ? user.getGithubUrl() : "");
+        res.put("linkedinUrl",   user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
+        res.put("portfolioUrl",  user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("role",          user.getRole());
         res.put("providers",     user.getProviders() != null ? user.getProviders() : java.util.List.of());
         res.put("avatarColor",   user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");

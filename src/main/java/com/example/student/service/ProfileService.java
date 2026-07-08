@@ -31,7 +31,9 @@ public class ProfileService {
 
     private static final int BIO_MAX = 300;
     private static final int NAME_MAX = 60;
+    private static final int URL_MAX = 200;
     private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
+    private static final Pattern URL_RE = Pattern.compile("^https?://[^\\s]{3,}$", Pattern.CASE_INSENSITIVE);
 
     private final UserRepository userRepository;
     private final UsernameService usernameService;
@@ -91,6 +93,9 @@ public class ProfileService {
         res.put("xp", user.getXp());
         res.put("level", user.getLevel());
         res.put("joinedAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        res.put("githubUrl", user.getGithubUrl() != null ? user.getGithubUrl() : "");
+        res.put("linkedinUrl", user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
+        res.put("portfolioUrl", user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("badgeCount", badges.size());
         res.put("badges", badges);
         return res;
@@ -150,7 +155,23 @@ public class ProfileService {
             user.setAvatarColor(color);
         }
 
+        // Career links — each optional; empty string clears it, otherwise must be a full URL.
+        if (req.getGithubUrl() != null)    user.setGithubUrl(cleanUrl(req.getGithubUrl(), "GitHub"));
+        if (req.getLinkedinUrl() != null)  user.setLinkedinUrl(cleanUrl(req.getLinkedinUrl(), "LinkedIn"));
+        if (req.getPortfolioUrl() != null) user.setPortfolioUrl(cleanUrl(req.getPortfolioUrl(), "Portfolio"));
+
         // role, xp, email, password, etc. are intentionally never read from the request.
         return userRepository.save(user);
+    }
+
+    /** Trims a link; returns null when blank (clears it) or validates it is a full http(s) URL. */
+    private String cleanUrl(String raw, String label) {
+        String url = raw.trim();
+        if (url.isEmpty()) return null;
+        if (url.length() > URL_MAX)
+            throw new IllegalArgumentException(label + " link is too long");
+        if (!URL_RE.matcher(url).matches())
+            throw new IllegalArgumentException(label + " link must be a full URL starting with https://");
+        return url;
     }
 }

@@ -19,16 +19,23 @@ public class WalkInController {
     private final WalkInService walkInService;
 
     // ── Public: get active walk-ins ──────────────────────────
+    // Principal is optional (route is permitAll); when a valid session cookie is
+    // present we flag the caller's own posts so the UI can show delete.
     @GetMapping("/api/walkins")
     public ResponseEntity<List<WalkIn>> getWalkIns(
-            @RequestParam(required = false) String city) {
-        return ResponseEntity.ok(walkInService.getActiveWalkIns(city));
+            @RequestParam(required = false) String city,
+            @AuthenticationPrincipal User user) {
+        List<WalkIn> list = walkInService.getActiveWalkIns(city);
+        list.forEach(w -> w.setMine(isOwner(w, user)));
+        return ResponseEntity.ok(list);
     }
 
     // ── Public: get one ──────────────────────────────────────
     @GetMapping("/api/walkins/{id}")
-    public ResponseEntity<?> getWalkIn(@PathVariable String id) {
+    public ResponseEntity<?> getWalkIn(@PathVariable String id,
+            @AuthenticationPrincipal User user) {
         return walkInService.getById(id)
+                .map(w -> { w.setMine(isOwner(w, user)); return w; })
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -41,10 +48,15 @@ public class WalkInController {
         if (user == null) return ResponseEntity.status(401).body("Login required");
         try {
             WalkIn saved = walkInService.createWalkIn(walkIn, user.getEmail());
+            saved.setMine(true); // poster owns it — show delete immediately
             return ResponseEntity.ok(saved);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private boolean isOwner(WalkIn w, User user) {
+        return user != null && user.getId() != null && user.getId().equals(w.getPostedById());
     }
 
     // ── Admin: update a walk-in ──────────────────────────────
