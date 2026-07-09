@@ -3,6 +3,10 @@ package com.example.student.controller;
 import com.example.student.model.Report;
 import com.example.student.model.User;
 import com.example.student.repository.ReportRepository;
+import com.example.student.security.ClientIpResolver;
+import com.example.student.security.RateLimiterService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -18,17 +22,26 @@ import java.util.Map;
 public class ReportController {
 
     private final ReportRepository reportRepository;
+    private final RateLimiterService rateLimiter;
 
-    public ReportController(ReportRepository reportRepository) {
+    public ReportController(ReportRepository reportRepository, RateLimiterService rateLimiter) {
         this.reportRepository = reportRepository;
+        this.rateLimiter = rateLimiter;
     }
 
     // Student submits a report
     @PostMapping
-    public ResponseEntity<?> submit(@RequestBody Report report,
-                                    @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> submit(@Valid @RequestBody Report report,
+                                    @AuthenticationPrincipal User user,
+                                    HttpServletRequest request) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        long retryAfter = rateLimiter.hit("report", ClientIpResolver.resolve(request), 10, 3600);
+        if (retryAfter > 0) {
+            return ResponseEntity.status(429).body(Map.of(
+                "error", "Too many submissions. Please try again later.",
+                "retryAfter", retryAfter));
         }
         report.setId(null); // never let the client choose the document id (prevents overwriting others' reports)
         report.setUserId(user.getId());

@@ -4,6 +4,7 @@ import com.example.student.dto.AuthResponse;
 import com.example.student.dto.LoginRequest;
 import com.example.student.dto.RegisterRequest;
 import com.example.student.model.User;
+import com.example.student.security.ClientIpResolver;
 import com.example.student.security.LoginAttemptService;
 import com.example.student.security.RateLimiterService;
 import com.example.student.service.AuthService;
@@ -105,9 +106,7 @@ public class AuthController {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank()) return ip.split(",")[0].trim();
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request);
     }
 
     @PostMapping("/google")
@@ -139,9 +138,19 @@ public class AuthController {
     public ResponseEntity<?> guest(@RequestBody(required = false) java.util.Map<String, String> body,
                                    HttpServletRequest request, HttpServletResponse response) {
         String guestId = body != null ? body.get("guestId") : null;
-        // Only throttle brand-new guest creation; returning users reuse their device id.
+        String ip = getClientIp(request);
+        // Brand-new guest creation is the expensive path — throttle it tightly.
         if (guestId == null || guestId.isBlank()) {
-            long retryAfter = rateLimiter.hit("guest", getClientIp(request), 20, 3600);
+            long retryAfter = rateLimiter.hit("guest", ip, 20, 3600);
+            if (retryAfter > 0) {
+                return ResponseEntity.status(429).body(Map.of(
+                    "error", "Too many guest sessions from this network. Please try again later.",
+                    "retryAfter", retryAfter));
+            }
+        } else {
+            // Reuse path: generous cap so real users reloading are never blocked, but a
+            // flood of guessed device tokens from one IP is still throttled.
+            long retryAfter = rateLimiter.hit("guest-reuse", ip, 60, 3600);
             if (retryAfter > 0) {
                 return ResponseEntity.status(429).body(Map.of(
                     "error", "Too many guest sessions from this network. Please try again later.",

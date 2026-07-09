@@ -61,8 +61,6 @@ public class EmailVerificationController {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank()) return ip.split(",")[0].trim();
-        return request.getRemoteAddr();
+        return com.example.student.security.ClientIpResolver.resolve(request);
     }
 }

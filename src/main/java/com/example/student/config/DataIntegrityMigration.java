@@ -1,10 +1,15 @@
 package com.example.student.config;
 
 import com.example.student.model.Bookmark;
+import com.example.student.model.Concept;
 import com.example.student.model.Feedback;
+import com.example.student.model.QuizAttempt;
 import com.example.student.model.Report;
 import com.example.student.model.RoadmapSubject;
 import com.example.student.model.User;
+import com.example.student.model.UserConceptProgress;
+import com.example.student.model.UserRoadmapEnrollment;
+import com.example.student.model.UserSubjectBadge;
 import com.example.student.model.WalkIn;
 import com.example.student.repository.UserRepository;
 import com.example.student.service.UsernameService;
@@ -172,6 +177,38 @@ public class DataIntegrityMigration implements CommandLineRunner {
         ensureUnique(Bookmark.class,
                 new Document("userId", 1).append("type", 1).append("refId", 1),
                 List.of("userId", "type", "refId"), "bookmarks{userId,type,refId}");
+
+        // Unique login email (also the DB-level guard against duplicate registration).
+        ensureUnique(User.class, new Document("email", 1),
+                List.of("email"), "users{email}");
+
+        // Secret guest device token; sparse so the vast majority of users (no token) don't
+        // collide on null.
+        ensureUniqueSparse(User.class, new Document("guestDeviceToken", 1),
+                List.of("guestDeviceToken"), "users{guestDeviceToken}");
+
+        // One progress row per (user, concept).
+        ensureUnique(UserConceptProgress.class,
+                new Document("userId", 1).append("conceptId", 1),
+                List.of("userId", "conceptId"), "user_concept_progress{userId,conceptId}");
+
+        // One badge per (user, subject).
+        ensureUnique(UserSubjectBadge.class,
+                new Document("userId", 1).append("subjectId", 1),
+                List.of("userId", "subjectId"), "user_subject_badges{userId,subjectId}");
+
+        // One enrollment per (user, roadmap).
+        ensureUnique(UserRoadmapEnrollment.class,
+                new Document("userId", 1).append("roadmapId", 1),
+                List.of("userId", "roadmapId"), "user_roadmap_enrollments{userId,roadmapId}");
+
+        // Quiz attempt lookups always filter by (user, type, ref) — non-unique (many attempts).
+        ensureCompound(QuizAttempt.class,
+                new Document("userId", 1).append("type", 1).append("refId", 1),
+                List.of("userId", "type", "refId"), "quiz_attempts{userId,type,refId}");
+
+        // Concept lists are fetched per subject.
+        ensureSimple(Concept.class, "subjectId", Sort.Direction.ASC);
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {
@@ -186,6 +223,16 @@ public class DataIntegrityMigration implements CommandLineRunner {
             log.info("DataIntegrityMigration: created index {}.{}", type.getSimpleName(), field);
         } catch (Exception e) {
             log.warn("DataIntegrityMigration: index {}.{} — {}", type.getSimpleName(), field, e.getMessage());
+        }
+    }
+
+    private void ensureCompound(Class<?> type, Document keyDoc, List<String> keys, String label) {
+        try {
+            if (indexExistsForKeys(type, keys)) return;
+            mongoTemplate.indexOps(type).ensureIndex(new CompoundIndexDefinition(keyDoc));
+            log.info("DataIntegrityMigration: created index {}", label);
+        } catch (Exception e) {
+            log.warn("DataIntegrityMigration: index {} — {}", label, e.getMessage());
         }
     }
 

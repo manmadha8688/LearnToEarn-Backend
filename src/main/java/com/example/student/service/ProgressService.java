@@ -101,7 +101,7 @@ public class ProgressService {
 
         // Daily bonus: +50 XP if this is the FIRST concept passed today.
         // Uses QuizAttempt.takenAt (reliable timestamp set at submission time)
-        // rather than completedAt (which could be corrupted by DataSeeder repairs).
+        // rather than completedAt (which is less reliable for this check).
         LocalDateTime startOfToday = LocalDate.now(IST).atStartOfDay();
         boolean isFirstToday = !quizAttemptRepository
                 .existsByUserIdAndTypeAndPassedTrueAndTakenAtAfterAndRefIdNot(

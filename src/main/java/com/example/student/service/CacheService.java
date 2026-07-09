@@ -28,7 +28,8 @@ public class CacheService {
         "roadmaps",    86400L,   // 24 h
         "missions",    86400L,   // 24 h — reference data, rarely changes
         "problems",    86400L,   // 24 h — reference data, rarely changes
-        "progress",    300L      // 5 min
+        "progress",    300L,     // 5 min
+        "publicStats", 300L      // 5 min — landing-page counts, cheap-to-spam public endpoint
     );
 
     private final Map<String, Cache<String, Object>> caffeineCaches;

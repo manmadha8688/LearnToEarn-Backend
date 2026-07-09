@@ -84,7 +84,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Cost 12 (OWASP-recommended minimum). BCrypt stores the cost in the hash, so
+        // existing cost-10 hashes still verify correctly — new/changed passwords use 12.
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean

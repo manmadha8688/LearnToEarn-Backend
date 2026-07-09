@@ -51,6 +51,14 @@ public class User implements UserDetails {
     @JsonIgnore
     private String googleId;
 
+    // Secret device token for GUEST session persistence. A server-generated random UUID
+    // (not the guessable Mongo _id) that the guest's browser stores and presents to reuse
+    // its account across reloads. Sparse-unique index created in DataIntegrityMigration.
+    // @JsonIgnore: the token is only ever returned once, via AuthResponse.guestToken — it
+    // must never leak through direct entity serialization.
+    @JsonIgnore
+    private String guestDeviceToken;
+
     // Auth methods linked to this single account: "local", "google" (future: "github", "microsoft").
     // One email = one account; providers accumulate here as the user links more methods.
     @Builder.Default

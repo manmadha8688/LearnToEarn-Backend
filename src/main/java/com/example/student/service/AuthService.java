@@ -99,10 +99,12 @@ public class AuthService {
                 new AuthResponse.UserDto(user.getId(), user.getFullName(), user.getEmail(), user.getRole()));
     }
 
-    public AuthResponse guestLogin(String guestId) {
-        // Reuse the same guest account for this device if it still exists (within 3-day window)
-        if (guestId != null && !guestId.isBlank()) {
-            java.util.Optional<User> existing = userRepository.findById(guestId);
+    public AuthResponse guestLogin(String deviceToken) {
+        // Reuse the same guest account only when the caller presents the exact secret device
+        // token issued at creation. Looking up by this unguessable UUID (not the Mongo _id)
+        // closes the takeover hole where any guest's id could be supplied to hijack it.
+        if (deviceToken != null && !deviceToken.isBlank()) {
+            java.util.Optional<User> existing = userRepository.findByGuestDeviceToken(deviceToken);
             if (existing.isPresent() && "GUEST".equals(existing.get().getRole())) {
                 User guest = existing.get();
                 guest.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
@@ -111,20 +113,23 @@ public class AuthService {
                 loginEventService.record(guest, "guest");
                 String token = jwtUtil.generateToken(guest.getEmail(), guest.getRole(), guest.getTokenVersion());
                 return new AuthResponse(token,
-                        new AuthResponse.UserDto(guest.getId(), guest.getFullName(), guest.getEmail(), guest.getRole()));
+                        new AuthResponse.UserDto(guest.getId(), guest.getFullName(), guest.getEmail(), guest.getRole()),
+                        guest.getGuestDeviceToken());
             }
         }
 
-        // Guest account not found or expired — create a new one
+        // No valid device token — create a new guest with a fresh secret token.
         long ts = System.currentTimeMillis();
         String guestEmail = "guest_" + ts + "@guest.local";
         String guestName  = "Guest#" + ((ts % 9000) + 1000);
+        String freshToken = java.util.UUID.randomUUID().toString();
 
         User guest = new User();
         guest.setFullName(guestName);
         guest.setEmail(guestEmail);
         guest.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
         guest.setRole("GUEST");
+        guest.setGuestDeviceToken(freshToken);
         guest.setAvatarColor("#64748B");
         guest.setIsActive(true);
         guest.setLastLoginAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
@@ -134,7 +139,8 @@ public class AuthService {
         loginEventService.record(saved, "guest");
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole(), saved.getTokenVersion());
         return new AuthResponse(token,
-                new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()));
+                new AuthResponse.UserDto(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole()),
+                saved.getGuestDeviceToken());
     }
 
     public void logout(String email) {

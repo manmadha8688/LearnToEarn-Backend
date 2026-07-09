@@ -43,7 +43,7 @@ public class WalkInController {
     // ── Authenticated: post a walk-in ────────────────────────
     @PostMapping("/api/walkins")
     public ResponseEntity<?> createWalkIn(
-            @RequestBody WalkIn walkIn,
+            @jakarta.validation.Valid @RequestBody WalkIn walkIn,
             @AuthenticationPrincipal User user) {
         if (user == null) return ResponseEntity.status(401).body("Login required");
         try {
@@ -63,7 +63,7 @@ public class WalkInController {
     @PutMapping("/api/admin/walkins/{id}")
     public ResponseEntity<?> updateWalkIn(
             @PathVariable String id,
-            @RequestBody WalkIn walkIn,
+            @jakarta.validation.Valid @RequestBody WalkIn walkIn,
             @AuthenticationPrincipal User user) {
         if (user == null || !"ADMIN".equals(user.getRole()))
             return ResponseEntity.status(403).build();
