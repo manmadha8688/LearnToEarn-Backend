@@ -22,9 +22,15 @@ public class EmailService {
 
     private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
     private static final String FROM_EMAIL = "noreply@learnforearn.in";
-    private static final String FROM_NAME  = "learnforearn";
+    private static final String FROM_NAME  = "LearnForEarn";
     private static final String APP_URL    = "https://learnforearn.in";
     private static final String DASHBOARD_URL = APP_URL + "/skill-arena/dashboard";
+
+    // Contact mailboxes used for Reply-To routing + email footers
+    private static final String HELP_EMAIL    = "help@learnforearn.in";
+    private static final String HELLO_EMAIL   = "hello@learnforearn.in";
+    private static final String PRIVACY_URL   = APP_URL + "/privacy";
+    private static final String CONTACT_URL   = APP_URL + "/contact";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper;
@@ -55,8 +61,11 @@ public class EmailService {
         sendOtpEmail(
             to, otp,
             "Verify your email",
-            "Your learnforearn verification code",
-            "Use the code below to verify your email and finish creating your account."
+            "Verify your email — LearnForEarn",
+            "Use the code below to verify your email and finish creating your account.",
+            "Need help? Contact <a href='mailto:" + HELP_EMAIL + "' style='color:#94A3B8;'>" + HELP_EMAIL + "</a>. " +
+                "Do not reply to this email — this inbox is not monitored.",
+            "Need help? Contact " + HELP_EMAIL + "\nDo not reply to this email — this inbox is not monitored."
         );
     }
 
@@ -65,12 +74,16 @@ public class EmailService {
         sendOtpEmail(
             to, otp,
             "Reset your password",
-            "Reset your learnforearn password",
-            "Use the code below to reset your password. If you did not request this, no action is needed."
+            "Reset your password — LearnForEarn",
+            "Use the code below to reset your password. If you did not request this, no action is needed.",
+            "If you didn't request this, contact <a href='mailto:" + HELP_EMAIL + "' style='color:#94A3B8;'>" + HELP_EMAIL + "</a> immediately. " +
+                "Do not reply to this email.",
+            "If you didn't request this, contact " + HELP_EMAIL + " immediately.\nDo not reply to this email."
         );
     }
 
-    private void sendOtpEmail(String to, String otp, String purpose, String subject, String intro) {
+    private void sendOtpEmail(String to, String otp, String purpose, String subject, String intro,
+                              String noteHtml, String noteText) {
         String recipient = to.trim().toLowerCase();
 
         if (apiKey == null || apiKey.isBlank()) {
@@ -85,9 +98,10 @@ public class EmailService {
         }
 
         try {
-            String html = buildOtpHtml(otp, purpose, intro, recipient);
-            String text = buildOtpText(otp, purpose, intro, recipient);
-            String body = buildPayload(recipient, subject, html, text);
+            String html = buildOtpHtml(otp, purpose, intro, recipient, noteHtml);
+            String text = buildOtpText(otp, purpose, intro, recipient, noteText);
+            // System/OTP mail → replies routed to the monitored support inbox.
+            String body = buildPayload(recipient, subject, html, text, HELP_EMAIL);
             HttpResponse<String> response = send(body);
             log.info("OTP email sent to {} (Brevo status {})", recipient, response.statusCode());
         } catch (Exception e) {
@@ -110,7 +124,8 @@ public class EmailService {
         try {
             String html = buildWelcomeHtml(name);
             String text = buildWelcomeText(name);
-            String body = buildPayload(recipient, "Welcome to learnforearn — your Hunter path begins", html, text);
+            // Welcome mail should feel personal → replies go to the general inbox.
+            String body = buildPayload(recipient, "Welcome to LearnForEarn \uD83C\uDF89", html, text, HELLO_EMAIL);
             HttpResponse<String> response = send(body);
             log.info("Welcome email sent to {} (Brevo status {})", recipient, response.statusCode());
         } catch (Exception e) {
@@ -132,7 +147,8 @@ public class EmailService {
         try {
             String html = buildPasswordChangedHtml(name);
             String text = buildPasswordChangedText(name);
-            String body = buildPayload(recipient, "Your learnforearn password was changed", html, text);
+            // Security/system mail → replies routed to the monitored support inbox.
+            String body = buildPayload(recipient, "Your password was changed — LearnForEarn", html, text, HELP_EMAIL);
             HttpResponse<String> response = send(body);
             log.info("Password-changed email sent to {} (Brevo status {})", recipient, response.statusCode());
         } catch (Exception e) {
@@ -165,7 +181,8 @@ public class EmailService {
         return response;
     }
 
-    private String buildPayload(String toEmail, String subject, String htmlContent, String textContent) throws Exception {
+    private String buildPayload(String toEmail, String subject, String htmlContent, String textContent,
+                                String replyToEmail) throws Exception {
         Map<String, Object> sender = new LinkedHashMap<>();
         sender.put("name", FROM_NAME);
         sender.put("email", FROM_EMAIL);
@@ -173,6 +190,10 @@ public class EmailService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sender", sender);
         payload.put("to", List.of(Map.of("email", toEmail)));
+        // Sender stays noreply@ (unchanged) — Reply-To just routes human replies to the right inbox.
+        if (replyToEmail != null && !replyToEmail.isBlank()) {
+            payload.put("replyTo", Map.of("email", replyToEmail, "name", FROM_NAME));
+        }
         payload.put("subject", subject);
         payload.put("htmlContent", htmlContent);
         if (textContent != null && !textContent.isBlank()) {
@@ -182,36 +203,66 @@ public class EmailService {
     }
 
     // ── Shared HTML shell ─────────────────────────────────────────────
-    private String shell(String purpose, String innerHtml) {
+    // noteHtml  → the email-specific line (help contact / security warning).
+    // personal  → welcome mail: drop the "automated / do not reply" lines so it feels human.
+    private String shell(String purpose, String innerHtml, String noteHtml, boolean personal) {
+        String note = (noteHtml == null || noteHtml.isBlank()) ? "" :
+            "<p style='color:#94A3B8;font-size:0.8rem;line-height:1.55;margin:22px 0 0;'>" + noteHtml + "</p>";
+
+        String automated = personal ? "" :
+            "<p style='color:#475569;font-size:0.72rem;margin:0 0 5px;'>This is an automated email from LearnForEarn</p>" +
+            "<p style='color:#475569;font-size:0.72rem;margin:0 0 5px;'>Do not reply to this email | Need help? " +
+            "<a href='mailto:" + HELP_EMAIL + "' style='color:#64748B;text-decoration:none;'>" + HELP_EMAIL + "</a></p>";
+
+        String legal =
+            "<p style='color:#475569;font-size:0.72rem;margin:0 0 5px;'>&#169; 2026 LearnForEarn | " +
+            "<a href='" + APP_URL + "' style='color:#64748B;text-decoration:none;'>learnforearn.in</a></p>" +
+            "<p style='color:#475569;font-size:0.72rem;margin:0;'>" +
+            "<a href='" + CONTACT_URL + "' style='color:#64748B;text-decoration:underline;'>Unsubscribe</a> | " +
+            "<a href='" + PRIVACY_URL + "' style='color:#64748B;text-decoration:underline;'>Privacy Policy</a></p>";
+
         return "<div style='font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;background:#0D1117;border-radius:16px;overflow:hidden;'>" +
                "<div style='background:linear-gradient(135deg,#7C3AED,#9B6ED4);padding:28px 32px;text-align:center;'>" +
-               "<h1 style='color:#fff;margin:0;font-size:1.5rem;letter-spacing:0.02em;'>&#9876; learnforearn</h1>" +
+               "<h1 style='color:#fff;margin:0;font-size:1.5rem;letter-spacing:0.02em;'>&#9876; LearnForEarn</h1>" +
                "<p style='color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:0.875rem;'>" + purpose + "</p></div>" +
-               "<div style='padding:32px;'>" + innerHtml + "</div>" +
-               "<div style='background:#0A0D14;padding:16px 32px;text-align:center;'>" +
-               "<p style='color:#475569;font-size:0.75rem;margin:0;'>&#169; learnforearn &middot; ARISE Skill Arena</p></div></div>";
+               "<div style='padding:32px;'>" + innerHtml + note + "</div>" +
+               "<div style='background:#0A0D14;padding:18px 32px;text-align:center;'>" +
+               automated + legal + "</div></div>";
     }
 
-    private String buildOtpHtml(String otp, String purpose, String intro, String recipient) {
+    // Plain-text footer mirror of the HTML shell footer.
+    private String textFooter(String note, boolean personal) {
+        StringBuilder sb = new StringBuilder("\n\n");
+        if (note != null && !note.isBlank()) sb.append(note).append("\n\n");
+        if (!personal) {
+            sb.append("This is an automated email from LearnForEarn\n");
+            sb.append("Do not reply to this email | Need help? ").append(HELP_EMAIL).append("\n");
+        }
+        sb.append("\u00A9 2026 LearnForEarn | learnforearn.in\n");
+        sb.append("Unsubscribe: ").append(CONTACT_URL).append(" | Privacy Policy: ").append(PRIVACY_URL);
+        return sb.toString();
+    }
+
+    private String buildOtpHtml(String otp, String purpose, String intro, String recipient, String noteHtml) {
         String inner =
             "<p style='color:#94A3B8;margin:0 0 4px;font-size:0.8rem;'>Requested for <strong style='color:#CBD5E1;'>" + recipient + "</strong></p>" +
             "<p style='color:#CBD5E1;margin:0 0 20px;font-size:0.95rem;'>" + intro + " This code is valid for <strong style='color:#C4B5FD;'>10 minutes</strong>.</p>" +
             "<div style='background:#161B27;border:2px solid rgba(155,110,212,0.4);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;'>" +
             "<span style='font-size:2.5rem;font-weight:900;letter-spacing:0.3em;color:#C4B5FD;font-family:monospace;'>" + otp + "</span></div>" +
-            "<p style='color:#64748B;font-size:0.8rem;margin:0 0 6px;'>Never share this code. learnforearn will never ask for it over phone, chat, or social media.</p>" +
+            "<p style='color:#64748B;font-size:0.8rem;margin:0 0 6px;'>Never share this code. LearnForEarn will never ask for it over phone, chat, or social media.</p>" +
             "<p style='color:#64748B;font-size:0.8rem;margin:0;'>If you did not request this, you can safely ignore this email.</p>";
-        return shell(purpose, inner);
+        return shell(purpose, inner, noteHtml, false);
     }
 
-    private String buildOtpText(String otp, String purpose, String intro, String recipient) {
-        return "learnforearn — " + purpose + "\n\n" +
+    private String buildOtpText(String otp, String purpose, String intro, String recipient, String noteText) {
+        return "LearnForEarn — " + purpose + "\n\n" +
                "Requested for: " + recipient + "\n" +
                intro + "\n\n" +
                "Your code: " + otp + "\n" +
                "This code is valid for 10 minutes.\n\n" +
-               "Never share this code. learnforearn will never ask for it over phone, chat, or social media.\n" +
-               "If you did not request this, you can safely ignore this email.\n\n" +
-               "— learnforearn · ARISE Skill Arena";
+               "Never share this code. LearnForEarn will never ask for it over phone, chat, or social media.\n" +
+               "If you did not request this, you can safely ignore this email." +
+               textFooter(noteText, false);
     }
 
     private String buildWelcomeHtml(String name) {
@@ -226,40 +277,45 @@ public class EmailService {
             "<div style='text-align:center;margin-bottom:20px;'>" +
             "<a href='" + DASHBOARD_URL + "' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Enter the Skill Arena</a></div>" +
             "<p style='color:#64748B;font-size:0.8rem;margin:0;'>Rank E today. The climb starts now.</p>";
-        return shell("Your Hunter path begins", inner);
+        String note = "Questions? Reply to this email or contact " +
+            "<a href='mailto:" + HELLO_EMAIL + "' style='color:#94A3B8;'>" + HELLO_EMAIL + "</a>.";
+        return shell("Your Hunter path begins", inner, note, true);
     }
 
     private String buildWelcomeText(String name) {
-        return "Welcome to learnforearn, " + name + ".\n\n" +
+        return "Welcome to LearnForEarn, " + name + ".\n\n" +
                "Your account is ready. Everyone starts at Rank E — S-rank is earned one concept at a time.\n\n" +
                "How to begin:\n" +
                " - Pick a subject and complete your first concept.\n" +
                " - Take a quiz to earn XP — the first concept each day carries a bonus.\n" +
                " - Enroll in a roadmap if you prefer a guided path.\n\n" +
                "Enter the Skill Arena: " + DASHBOARD_URL + "\n\n" +
-               "Rank E today. The climb starts now.\n\n" +
-               "— learnforearn · ARISE Skill Arena";
+               "Rank E today. The climb starts now." +
+               textFooter("Questions? Reply to this email or contact " + HELLO_EMAIL + ".", true);
     }
 
     private String buildPasswordChangedHtml(String name) {
         String inner =
             "<p style='color:#E2E8F0;margin:0 0 16px;font-size:1.05rem;'>Hi " + name + ",</p>" +
             "<p style='color:#CBD5E1;margin:0 0 20px;font-size:0.95rem;line-height:1.6;'>" +
-            "This is a confirmation that your learnforearn password was just changed. You can now sign in with your new password.</p>" +
+            "This is a confirmation that your LearnForEarn password was just changed. You can now sign in with your new password.</p>" +
             "<div style='text-align:center;margin-bottom:20px;'>" +
             "<a href='" + APP_URL + "/login' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Sign in</a></div>" +
             "<div style='background:#161B27;border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:16px;'>" +
-            "<p style='color:#FCA5A5;font-size:0.85rem;margin:0;'>If you did not make this change, your account may be at risk. Please reset your password immediately and contact support.</p></div>";
-        return shell("Password changed", inner);
+            "<p style='color:#FCA5A5;font-size:0.85rem;margin:0;'>If you did not make this change, your account may be at risk. Please reset your password immediately.</p></div>";
+        String note = "If this wasn't you, contact " +
+            "<a href='mailto:" + HELP_EMAIL + "' style='color:#94A3B8;'>" + HELP_EMAIL + "</a> immediately. " +
+            "Do not reply to this email.";
+        return shell("Password changed", inner, note, false);
     }
 
     private String buildPasswordChangedText(String name) {
         return "Hi " + name + ",\n\n" +
-               "This is a confirmation that your learnforearn password was just changed. " +
+               "This is a confirmation that your LearnForEarn password was just changed. " +
                "You can now sign in with your new password.\n\n" +
                "Sign in: " + APP_URL + "/login\n\n" +
                "If you did not make this change, your account may be at risk. " +
-               "Please reset your password immediately and contact support.\n\n" +
-               "— learnforearn · ARISE Skill Arena";
+               "Please reset your password immediately." +
+               textFooter("If this wasn't you, contact " + HELP_EMAIL + " immediately.\nDo not reply to this email.", false);
     }
 }
