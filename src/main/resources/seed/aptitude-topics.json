@@ -1,0 +1,436 @@
+[
+  {
+    "category": "quantitative", "topic": "number-system", "displayName": "Number System", "description": "Types of numbers, factors, multiples and remainders — the base of all arithmetic.", "icon": "🔢", "difficulty": "easy", "priority": "high", "order": 1,
+    "videos": [
+      { "label": "Master Unit Digits — cyclicity & power rules", "url": "https://www.youtube.com/watch?v=rl3guXEfYsw", "note": "Solve last-digit of huge powers (e.g. 7^623) in seconds" },
+      { "label": "Number System — Unit Digit & counting zeros (SSC CGL)", "url": "https://www.youtube.com/watch?v=Yqk_LO0tR84", "note": "Hindi — step-by-step from basics with exam questions" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "lcm-hcf", "displayName": "LCM & HCF", "description": "Find the highest common factor and lowest common multiple, and where each is used.", "icon": "🔢", "difficulty": "easy", "priority": "high", "order": 2,
+    "videos": [
+      { "label": "HCF & LCM — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=xyyejJYeILM", "note": "Concept + how to spot HCF vs LCM in word problems" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "divisibility-rules", "displayName": "Divisibility Rules", "description": "Quick checks for divisibility by 2, 3, 4, 5, 6, 8, 9, 11 and more.", "icon": "🧮", "difficulty": "easy", "priority": "medium", "order": 3,
+    "videos": [
+      { "label": "All Divisibility Rules 1–13 in one video", "url": "https://www.youtube.com/watch?v=Sl6dgTGCM08", "note": "Fast, complete rundown of every rule" },
+      { "label": "Divisibility Rule shortcuts — solve in seconds", "url": "https://www.youtube.com/watch?v=xso3ZZjAW-A", "note": "Applying the rules to exam questions" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "decimal-fractions", "displayName": "Decimal Fractions", "description": "Work with decimals and fractions and convert cleanly between them.", "icon": "🔣", "difficulty": "easy", "priority": "medium", "order": 4,
+    "videos": [
+      { "label": "Fractions & Decimals — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=tnc9ojITRg4", "note": "Conversion, comparison & ordering methods for exams" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "simplification-approximation", "displayName": "Simplification & Approximation", "description": "Use BODMAS and smart rounding to solve long expressions fast.", "icon": "➗", "difficulty": "easy", "priority": "high", "order": 5,
+    "videos": [
+      { "label": "Simplification & Approximation — full session (Adda247)", "url": "https://www.youtube.com/watch?v=l47LhCUMptY", "note": "Navneet Sir — concept + speed tricks for exams" },
+      { "label": "Simplification, Approximation & Percentage basics", "url": "https://www.youtube.com/watch?v=P-QzAlHWSbU", "note": "Beginner-friendly foundation class" }
+    ]
+  },
+  {
+    "category": "quantitative",
+    "topic": "percentages",
+    "displayName": "Percentages",
+    "description": "Convert between fractions, decimals and percents and handle increase or decrease with ease.",
+    "icon": "💯",
+    "difficulty": "easy",
+    "priority": "high",
+    "order": 6,
+    "videos": [
+      { "label": "Percentage — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=RWdNhJWwzSs", "note": "3M+ views — clear concept plus speed tricks" },
+      { "label": "Percentage Aptitude Tricks for Placements — Lecture 01", "url": "https://www.youtube.com/watch?v=jce8ccf1INE", "note": "PrepInsta — TCS / Infosys / Wipro focused" }
+    ],
+    "learnIt": {
+      "realLife": "Your friend scored 45 out of 50 in one test and you scored 72 out of 80 in another. Who did better? The totals are different, so the raw marks cannot be compared straight away. Percentages fix this by putting everything on the same scale — out of 100 — so any two things instantly become comparable.",
+      "plainMeaning": "The words 'per cent' literally mean 'out of 100'. So 30% simply means 30 out of every 100. If 30% of a class are girls, then for every 100 students, 30 are girls. A percentage is really just a fraction that always has 100 on the bottom.",
+      "mathIntro": "Because percent means 'out of 100', you can move between a fraction and a percentage any time: to turn a fraction into a percent, multiply by 100; to turn a percent into a fraction, divide by 100.",
+      "formulas": [
+        { "label": "What percent one number is of another", "formula": "Percentage = (Part ÷ Whole) × 100", "breakdown": "Part is the piece you have, Whole is the full amount, and × 100 turns the fraction into an out-of-100 number. If 45 of 50 marks are yours: (45 ÷ 50) × 100 = 90%." },
+        { "label": "A percentage of a number", "formula": "Value = (Percentage ÷ 100) × Number", "breakdown": "Divide the percent by 100 to make it a fraction, then multiply by the number. 20% of 150 = (20 ÷ 100) × 150 = 30." },
+        { "label": "Percentage change", "formula": "Change % = (New − Old) ÷ Old × 100", "breakdown": "Subtract the old value from the new to get the change, divide by the OLD value (always the starting point), then × 100. If a price goes from 200 to 250: (250 − 200) ÷ 200 × 100 = 25% increase." }
+      ],
+      "examples": [
+        {
+          "level": "Simple",
+          "problem": "What is 25% of 80?",
+          "steps": [
+            { "action": "Write 25% as a fraction: 25 ÷ 100.", "why": "'Per cent' means out of 100, so 25% is 25/100." },
+            { "action": "'Of' means multiply, so calculate (25 ÷ 100) × 80.", "why": "In maths, the word 'of' between a percent and a number always means multiply." },
+            { "action": "Simplify 25/100 to 1/4, then 1/4 of 80 = 80 ÷ 4 = 20.", "why": "Turning 25% into the simpler fraction 1/4 makes the arithmetic much easier." }
+          ],
+          "answer": "25% of 80 is 20."
+        },
+        {
+          "level": "Medium",
+          "problem": "A student scored 45 out of 60. What percentage is that?",
+          "steps": [
+            { "action": "Identify Part = 45 and Whole = 60.", "why": "The marks scored are the part; the maximum marks are the whole." },
+            { "action": "Use Percentage = (Part ÷ Whole) × 100 = (45 ÷ 60) × 100.", "why": "This formula turns '45 out of 60' into an out-of-100 figure." },
+            { "action": "45 ÷ 60 = 0.75.", "why": "First do the division inside the bracket." },
+            { "action": "0.75 × 100 = 75.", "why": "Multiplying by 100 turns the decimal into a percentage." }
+          ],
+          "answer": "That is 75%."
+        },
+        {
+          "level": "Hard",
+          "problem": "A shop raises the price of a bag from ₹800 by 25%, then gives a 20% discount on the new price. What is the final price?",
+          "steps": [
+            { "action": "Find the 25% rise on the starting price ₹800: 25% of 800 = (25/100) × 800 = 200.", "why": "A percentage change is taken on the value you start from — here that is ₹800." },
+            { "action": "Add it on: new price = 800 + 200 = 1000.", "why": "An increase is added to the original price." },
+            { "action": "Now take the 20% discount on the NEW price ₹1000, not the old ₹800: 20% of 1000 = (20/100) × 1000 = 200.", "why": "A discount is always calculated on the current marked price, which is now ₹1000." },
+            { "action": "Subtract it: final price = 1000 − 200 = 800.", "why": "A discount is taken away from the price it applies to." }
+          ],
+          "answer": "₹800 — the same as the start, because the two percentages were taken on different amounts."
+        }
+      ],
+      "commonMistakes": [
+        "Taking the second percentage on the original amount. A 25% rise then a 20% fall is NOT 'up 5%' (25 − 20). Each percent sits on a different base, so you must apply them one after the other.",
+        "Mixing up 'percent' and 'percentage points'. Going from 20% to 25% is a rise of 5 percentage points, but that is a 25% increase in the rate itself.",
+        "In percentage change, dividing by the new value instead of the old one. Always divide by where you started.",
+        "Turning 'of' into a plus. '20% of 150' means 20/100 × 150, never 20 + 150."
+      ],
+      "memoryTrick": "Read it straight off: 'of' means × and 'per cent' means ÷ 100, so '20% of 150' is 20 ÷ 100 × 150. And memorise the friendly fractions — 10% = 1/10, 20% = 1/5, 25% = 1/4, 50% = 1/2, 12.5% = 1/8 — because swapping to the fraction makes the maths instant."
+    },
+    "crackIt": {
+      "theTrick": "Turn every percentage into an easy fraction, and use the rule 'x% of y = y% of x' to flip the hard number onto the easy one.",
+      "shortcut": {
+        "formula": "x% of y = y% of x   •   friendly fractions (10%=1/10, 20%=1/5, 25%=1/4, 50%=1/2, 12.5%=1/8, 33.33%=1/3)   •   two successive changes: net % = a + b + (a × b)/100",
+        "whereNumbersGo": "Compute whichever side is easier: 16% of 25 is hard, but 25% of 16 = 16 ÷ 4 = 4 — same answer, far easier. For a rise of a% then a fall of b%, put a and b (use a minus sign for a decrease) into a + b + ab/100."
+      },
+      "examples": [
+        { "level": "Simple", "problem": "25% of 80", "steps": ["25% = 1/4", "80 ÷ 4 = 20"], "answer": "20" },
+        { "level": "Medium", "problem": "45 out of 60 as a percent", "steps": ["Cancel: 45/60 = 3/4 (divide both by 15)", "3/4 = 75%"], "answer": "75%" },
+        { "level": "Hard", "problem": "+25% then −20% on ₹800", "steps": ["net % = a + b + ab/100 with a = +25, b = −20", "= 25 − 20 + (25 × −20)/100", "= 25 − 20 − 5 = 0%", "0% change → price stays ₹800"], "answer": "₹800" }
+      ],
+      "comparison": [
+        { "example": "25% of 80", "normal": "(25 ÷ 100) × 80 = 2000 ÷ 100 = 20. About 30 seconds.", "shortcut": "25% = 1/4 → 80 ÷ 4 = 20. About 5 seconds." },
+        { "example": "+25% then −20%", "normal": "800 → +200 = 1000 → −200 = 800. Two full steps, about 90 seconds.", "shortcut": "net = 25 − 20 − (25×20/100) = 0% → ₹800. About 15 seconds." }
+      ],
+      "whyItWorks": "'x% of y = y% of x' works because both are the very same multiplication: (x/100) × y equals (y/100) × x. The net-change formula works because the second percentage acts on the already-changed amount, and the extra ab/100 term captures that overlap.",
+      "whenWorks": [
+        "Fraction swaps and the x%-of-y flip: any 'percent of a number' calculation.",
+        "The a + b + ab/100 formula: exactly two successive percentage changes."
+      ],
+      "whenNot": [
+        "The net-change formula is for TWO changes only — for three or more, apply them one at a time.",
+        "Fraction shortcuts help only for the 'nice' percentages (10, 12.5, 20, 25, 33.33, 50). For an odd one like 37%, just compute directly."
+      ],
+      "practicePattern": "Any 'successive increase/decrease' or 'raise then discount' question is a net-change-formula question. Any 'find x% of a number' with a nice percentage is a fraction-swap question."
+    }
+  },
+  {
+    "category": "quantitative", "topic": "ratio-proportion", "displayName": "Ratio & Proportion", "description": "Compare quantities, split things in a given ratio and solve proportions.", "icon": "⚖️", "difficulty": "easy", "priority": "high", "order": 7,
+    "videos": [
+      { "label": "Ratio & Proportion — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=jfoJBivWlnQ", "note": "Concept + the assume-k shortcut for tough sums" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "averages", "displayName": "Averages", "description": "Find the mean and handle problems where values are added, removed or replaced.", "icon": "👥", "difficulty": "easy", "priority": "high", "order": 8,
+    "videos": [
+      { "label": "Averages — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=rhSxQ4ieAYc", "note": "Concept from scratch + replacement shortcut" },
+      { "label": "Averages — concept + variant questions (CAT level)", "url": "https://www.youtube.com/watch?v=7ByzFUmMikM", "note": "Deviation & weighted-average methods, harder variants" }
+    ]
+  },
+  { "category": "quantitative", "topic": "ages", "displayName": "Ages", "description": "Solve present, past and future age puzzles using simple equations.", "icon": "🎂", "difficulty": "easy", "priority": "medium", "order": 9 },
+  { "category": "quantitative", "topic": "simple-interest", "displayName": "Simple Interest", "description": "Calculate interest that stays flat on the original principal.", "icon": "💰", "difficulty": "easy", "priority": "medium", "order": 10 },
+  { "category": "quantitative", "topic": "compound-interest", "displayName": "Compound Interest", "description": "Interest that grows on interest — yearly, half-yearly and quarterly.", "icon": "📈", "difficulty": "medium", "priority": "medium", "order": 11 },
+  {
+    "category": "quantitative", "topic": "profit-loss", "displayName": "Profit & Loss", "description": "Cost price, selling price, profit, loss and their percentages.", "icon": "💹", "difficulty": "easy", "priority": "high", "order": 12,
+    "videos": [
+      { "label": "Profit & Loss — best tricks & shortcuts with PYQs", "url": "https://www.youtube.com/watch?v=a5LVOcdRUKo", "note": "Concept + previous-year question patterns" }
+    ]
+  },
+  { "category": "quantitative", "topic": "discount", "displayName": "Discount", "description": "Marked price, discount and the link between discount and profit.", "icon": "🏷️", "difficulty": "easy", "priority": "medium", "order": 13 },
+  { "category": "quantitative", "topic": "mixture-alligation", "displayName": "Mixture & Alligation", "description": "Mix two or more things and find ratios using the alligation rule.", "icon": "🧩", "difficulty": "medium", "priority": "medium", "order": 14 },
+  {
+    "category": "quantitative", "topic": "partnership", "displayName": "Partnership", "description": "Split profit between partners based on capital and time invested.", "icon": "🤝", "difficulty": "medium", "priority": "medium", "order": 15,
+    "videos": [
+      { "label": "Partnership & Share — placement aptitude (MNC pattern)", "url": "https://www.youtube.com/watch?v=BvPSU68lpHo", "note": "Capital×time profit-ratio method with worked MNC questions" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "time-work", "displayName": "Time & Work", "description": "Work out how long people or machines take — alone or together.", "icon": "🛠️", "difficulty": "medium", "priority": "high", "order": 16,
+    "videos": [
+      { "label": "Work & Wages — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=8OOBo5C7dsc", "note": "Full lecture — efficiency/LCM method + wage-sharing problems" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "pipes-cisterns", "displayName": "Pipes & Cisterns", "description": "Filling and emptying tanks — the same idea as time & work.", "icon": "🔧", "difficulty": "medium", "priority": "medium", "order": 17,
+    "videos": [
+      { "label": "Pipes & Cisterns — basics to advanced (Sahil Sir)", "url": "https://www.youtube.com/watch?v=0rX5qV0jeXM", "note": "LCM method, inlet/outlet & leak problems with shortcuts" }
+    ]
+  },
+  {
+    "category": "quantitative",
+    "topic": "time-speed-distance",
+    "displayName": "Time, Speed & Distance",
+    "description": "Link speed, distance and time to solve travel, trains and relative-motion problems.",
+    "icon": "🚄",
+    "difficulty": "medium",
+    "priority": "high",
+    "order": 18,
+    "videos": [
+      { "label": "Time, Speed & Distance — full placement session", "url": "https://www.youtube.com/watch?v=b7IaZBp15R8", "note": "PrepInsta — concept plus trains and boats" },
+      { "label": "Speed, Time & Distance — Basic to Advanced", "url": "https://www.youtube.com/watch?v=d0GvbHL9bII", "note": "Basics to advanced solved questions" }
+    ],
+    "learnIt": {
+      "realLife": "You walk to school every day. Some days you walk fast and reach in 10 minutes; some days you stroll and it takes 20 minutes. The road never changed — only your speed and your time did. That single everyday fact is this whole topic: how fast you go and how long you take together decide how far you reach.",
+      "plainMeaning": "Speed just means how much distance you cover in one unit of time — like 'in one hour'. If a car covers 60 kilometres in 1 hour, its speed is 60 kilometres per hour (written 60 km/h). Distance is the total length you travelled. Time is how long it took. These three are joined together: if you know any two of them, you can always find the third.",
+      "mathIntro": "One simple relationship connects all three: distance equals speed multiplied by time. From this one idea we can rearrange the letters to find speed or time whenever we need to.",
+      "formulas": [
+        { "label": "Distance", "formula": "Distance = Speed × Time", "breakdown": "Distance (how far you go) equals Speed (how far you cover in one hour) times Time (how many hours you travel). Going 50 km every hour for 3 hours gives 50 × 3 = 150 km." },
+        { "label": "Speed", "formula": "Speed = Distance ÷ Time", "breakdown": "Speed equals the total Distance divided by the Time taken. Covering 150 km in 3 hours means each hour you did 150 ÷ 3 = 50, so your speed is 50 km/h." },
+        { "label": "Time", "formula": "Time = Distance ÷ Speed", "breakdown": "Time equals the total Distance divided by the Speed. To cover 150 km at 50 km/h you need 150 ÷ 50 = 3 hours." },
+        { "label": "Changing units (km/h and m/s)", "formula": "km/h → m/s: × 5/18     m/s → km/h: × 18/5", "breakdown": "When a question mixes kilometres-per-hour with metres-per-second, put them in the same unit first. To turn km/h into m/s multiply by 5/18; to go back, multiply by 18/5. So 36 km/h = 36 × 5/18 = 10 m/s." }
+      ],
+      "examples": [
+        {
+          "level": "Simple",
+          "problem": "A car travels at 40 km/h for 2 hours. How far does it go?",
+          "steps": [
+            { "action": "Write down what you are given: Speed = 40 km/h, Time = 2 hours. We need the Distance.", "why": "Listing the known values first stops you from mixing up which number is which." },
+            { "action": "Pick the formula that gives Distance: Distance = Speed × Time.", "why": "We already have speed and time and we want distance, so this is the matching form." },
+            { "action": "Put the numbers in: Distance = 40 × 2.", "why": "Replace the words with the values you just wrote down." },
+            { "action": "Multiply: 40 × 2 = 80.", "why": "This is the actual calculation." }
+          ],
+          "answer": "The car travels 80 km."
+        },
+        {
+          "level": "Medium",
+          "problem": "A train covers 240 km in 4 hours. What is its speed?",
+          "steps": [
+            { "action": "Given: Distance = 240 km, Time = 4 hours. We need Speed.", "why": "Note the known values before touching any formula." },
+            { "action": "Choose Speed = Distance ÷ Time.", "why": "We have distance and time and want speed, so we divide." },
+            { "action": "Put the numbers in: Speed = 240 ÷ 4.", "why": "Swap the words for the values." },
+            { "action": "Divide: 240 ÷ 4 = 60.", "why": "The arithmetic step." }
+          ],
+          "answer": "The train's speed is 60 km/h."
+        },
+        {
+          "level": "Hard",
+          "problem": "A man drives from home to office at 40 km/h and returns on the same road at 60 km/h. What is his average speed for the whole trip?",
+          "steps": [
+            { "action": "Do NOT just average 40 and 60. Average speed = total distance ÷ total time, so we must find the time each way first.", "why": "Average speed always means total distance over total time — never the plain average of the two speeds." },
+            { "action": "The distance each way is the same but unknown, so call it d km. Time going = d ÷ 40; time returning = d ÷ 60.", "why": "Using a letter for the unknown distance lets us work even though the number is not given." },
+            { "action": "Total distance = d + d = 2d. Total time = d/40 + d/60 = 3d/120 + 2d/120 = 5d/120 = d/24.", "why": "You can only add the two times after giving them the same denominator (120)." },
+            { "action": "Average speed = 2d ÷ (d/24) = 2d × 24/d = 48. The d cancels out.", "why": "Dividing by a fraction means multiplying by its flip, and the unknown d disappears — so we never needed its real value." }
+          ],
+          "answer": "The average speed is 48 km/h (not 50)."
+        }
+      ],
+      "commonMistakes": [
+        "Averaging the two speeds directly. For a there-and-back trip at 40 and 60, the answer is 48, not (40 + 60) ÷ 2 = 50. Equal distances are NOT equal times, so the plain average is wrong.",
+        "Mixing units. If speed is in km/h then time must be in hours, not minutes. 30 minutes is 0.5 hour, not 30.",
+        "Forgetting to convert km/h to m/s (or back) when a question mixes them. Multiply by 5/18 to go from km/h to m/s.",
+        "Reaching for a formula before writing down what is given — that is how the wrong values get plugged in."
+      ],
+      "memoryTrick": "Draw a triangle with D on top and S and T in the two bottom corners. Cover the letter you want with your finger: cover D and you see S × T; cover S and you see D over T (D ÷ T); cover T and you see D over S (D ÷ S). This 'D-S-T triangle' hands you the right formula every time."
+    },
+    "crackIt": {
+      "theTrick": "Stop juggling three formulas — use the D-S-T triangle for the basics, and for a trip covering the same distance at two speeds use the ready-made average-speed formula 2ab/(a+b).",
+      "shortcut": {
+        "formula": "D-S-T triangle (D on top; S and T below)   •   Average speed for equal distances = 2ab/(a+b)",
+        "whereNumbersGo": "For basics, cover the letter you want in the triangle and read off × or ÷. For a there-and-back (equal distance) trip, put the two speeds in as a and b into 2ab/(a+b)."
+      },
+      "examples": [
+        { "level": "Simple", "problem": "40 km/h for 2 h", "steps": ["Cover D in the triangle → D = S × T", "40 × 2 = 80"], "answer": "80 km" },
+        { "level": "Medium", "problem": "240 km in 4 h", "steps": ["Cover S in the triangle → S = D ÷ T", "240 ÷ 4 = 60"], "answer": "60 km/h" },
+        { "level": "Hard", "problem": "Same road at 40 and 60 km/h — average speed?", "steps": ["Equal distance both ways → use 2ab/(a+b)", "2 × 40 × 60 = 4800", "40 + 60 = 100", "4800 ÷ 100 = 48"], "answer": "48 km/h" }
+      ],
+      "comparison": [
+        { "example": "Round trip at 40 & 60 km/h", "normal": "Call distance d, find each time (d/40 and d/60), add them with common denominator 120 to get d/24, then 2d ÷ (d/24) = 48. About 2 minutes.", "shortcut": "2ab/(a+b) = (2×40×60)/(40+60) = 4800/100 = 48. About 15 seconds." },
+        { "example": "40 km/h for 2 h", "normal": "Recall Distance = Speed × Time, substitute, multiply: 40 × 2 = 80. About 30 seconds.", "shortcut": "Cover D in the triangle → 40 × 2 = 80. About 5 seconds." }
+      ],
+      "whyItWorks": "The triangle is just the single equation D = S × T rearranged three ways — covering a letter is algebra done with your finger. The 2ab/(a+b) formula works because you spend more time at the slower speed, which drags the average below the plain midpoint, and the formula already builds that in.",
+      "whenWorks": [
+        "The triangle: any basic question giving you two of distance, speed, time and asking for the third.",
+        "2ab/(a+b): only when the two distances are EQUAL, like a go-and-return trip on the same road."
+      ],
+      "whenNot": [
+        "Do not use 2ab/(a+b) when the two distances are different — go back to total distance ÷ total time.",
+        "Do not use any formula before fixing units — convert minutes to hours and km/h to m/s first."
+      ],
+      "practicePattern": "Any question that says 'goes at one speed and returns at another' or 'covers equal distances at two speeds' is a 2ab/(a+b) question. Any question that gives two of {distance, speed, time} and asks the third is a triangle question."
+    }
+  },
+  { "category": "quantitative", "topic": "train-problems", "displayName": "Train Problems", "description": "Crossing poles, platforms and other trains using relative speed.", "icon": "🚂", "difficulty": "medium", "priority": "medium", "order": 19 },
+  { "category": "quantitative", "topic": "boats-streams", "displayName": "Boats & Streams", "description": "Upstream, downstream and still-water speed problems.", "icon": "🚣", "difficulty": "medium", "priority": "medium", "order": 20 },
+  { "category": "quantitative", "topic": "relative-speed", "displayName": "Relative Speed", "description": "Speed of two moving bodies relative to each other — same and opposite directions.", "icon": "🔄", "difficulty": "hard", "priority": "low", "order": 21 },
+  { "category": "quantitative", "topic": "algebra", "displayName": "Algebra", "description": "Work with variables, expressions and algebraic identities.", "icon": "🧮", "difficulty": "medium", "priority": "medium", "order": 22 },
+  { "category": "quantitative", "topic": "equations", "displayName": "Equations", "description": "Solve linear and simultaneous equations and word problems.", "icon": "🟰", "difficulty": "medium", "priority": "medium", "order": 23 },
+  { "category": "quantitative", "topic": "elementary-statistics", "displayName": "Elementary Statistics", "description": "Basic data measures and how to read simple statistics.", "icon": "📊", "difficulty": "medium", "priority": "low", "order": 24 },
+  { "category": "quantitative", "topic": "mean-median-mode", "displayName": "Mean, Median & Mode", "description": "The three averages — when to use each and how to compute them.", "icon": "📊", "difficulty": "medium", "priority": "medium", "order": 25 },
+  { "category": "quantitative", "topic": "variance-standard-deviation", "displayName": "Variance & Standard Deviation", "description": "Measure how spread out a set of values is.", "icon": "📉", "difficulty": "hard", "priority": "low", "order": 26 },
+  { "category": "quantitative", "topic": "progressions", "displayName": "Progressions", "description": "Arithmetic and geometric sequences and their sums.", "icon": "📈", "difficulty": "medium", "priority": "medium", "order": 27 },
+  {
+    "category": "quantitative", "topic": "logarithms", "displayName": "Logarithms", "description": "Log rules and how to simplify and solve log expressions.", "icon": "🔢", "difficulty": "hard", "priority": "low", "order": 28,
+    "videos": [
+      { "label": "Logarithm — master it in 30 minutes (SSC)", "url": "https://www.youtube.com/watch?v=DpM4Td-c0ac", "note": "Product/quotient/power rules & change of base with shortcuts" }
+    ]
+  },
+  { "category": "quantitative", "topic": "geometry", "displayName": "Geometry", "description": "Lines, angles, triangles, circles and coordinate basics.", "icon": "📐", "difficulty": "hard", "priority": "medium", "order": 29 },
+  {
+    "category": "quantitative", "topic": "mensuration", "displayName": "Mensuration", "description": "Area, perimeter, surface area and volume of 2D and 3D shapes.", "icon": "📦", "difficulty": "hard", "priority": "medium", "order": 30,
+    "videos": [
+      { "label": "Mensuration 2D & 3D — one shot (all formulas + tricks)", "url": "https://www.youtube.com/watch?v=z974v19qtEs", "note": "Every 2D/3D formula with shortcut methods & exam questions" }
+    ]
+  },
+  {
+    "category": "quantitative", "topic": "permutation-combination", "displayName": "Permutation & Combination", "description": "Count arrangements and selections — order matters vs not.", "icon": "🔀", "difficulty": "hard", "priority": "low", "order": 31,
+    "videos": [
+      { "label": "Permutations & Combinations — full tutorial", "url": "https://www.youtube.com/watch?v=XJnIdRXUi7A", "note": "When order matters vs not, counting principle & word problems" },
+      { "label": "Permutation & Combination — full chapter (SSC + PYQ)", "url": "https://www.youtube.com/watch?v=f9GYSvDpVjY", "note": "Tricks with previous-year questions" }
+    ]
+  },
+  { "category": "quantitative", "topic": "probability", "displayName": "Probability", "description": "Measure how likely an event is, from coins and dice to combined events.", "icon": "🎲", "difficulty": "hard", "priority": "low", "order": 32 },
+  { "category": "quantitative", "topic": "data-sufficiency", "displayName": "Data Sufficiency", "description": "Decide whether the given data is enough to answer — without fully solving.", "icon": "📉", "difficulty": "hard", "priority": "low", "order": 33 },
+
+  {
+    "category": "logical", "topic": "number-series", "displayName": "Number Series", "description": "Find the missing or next number by spotting the pattern.", "icon": "🔢", "difficulty": "easy", "priority": "high", "order": 1,
+    "videos": [
+      { "label": "Number Series Reasoning Tricks — the easy way", "url": "https://www.youtube.com/watch?v=r614AD021n0", "note": "Arithmetic, geometric, square/cube & mixed patterns with examples" }
+    ]
+  },
+  {
+    "category": "logical", "topic": "letter-series", "displayName": "Letter Series", "description": "Crack alphabet-based sequences and find the missing letters.", "icon": "🔤", "difficulty": "easy", "priority": "medium", "order": 2,
+    "videos": [
+      { "label": "Letter Series — every pattern type explained", "url": "https://www.youtube.com/watch?v=2tIEK1xx0Fg", "note": "Aptitude Made Easy — all pattern types with solved examples" },
+      { "label": "Alphabet Series — reasoning tricks (SSC)", "url": "https://www.youtube.com/watch?v=A-yONe7JsFw", "note": "Position-based & reverse patterns with shortcuts" }
+    ]
+  },
+  { "category": "logical", "topic": "numeric-patterns", "displayName": "Numeric Patterns", "description": "Recognise numeric rules and complete the pattern.", "icon": "🔢", "difficulty": "easy", "priority": "medium", "order": 3 },
+  { "category": "logical", "topic": "word-patterns", "displayName": "Word Patterns", "description": "Spot the rule behind word and letter groupings.", "icon": "🔤", "difficulty": "easy", "priority": "medium", "order": 4 },
+  { "category": "logical", "topic": "figure-series", "displayName": "Figure Series", "description": "Find the next figure in a visual sequence.", "icon": "🖼️", "difficulty": "medium", "priority": "medium", "order": 5 },
+  {
+    "category": "logical", "topic": "blood-relations", "displayName": "Blood Relations", "description": "Untangle family trees to find how two people are related.", "icon": "👨‍👩‍👧", "difficulty": "easy", "priority": "high", "order": 6,
+    "videos": [
+      { "label": "Blood Relations — 5 must-solve practice sets", "url": "https://www.youtube.com/watch?v=WnLam1JAcVI", "note": "Family-tree method applied to exam-level puzzles" }
+    ]
+  },
+  {
+    "category": "logical", "topic": "directions", "displayName": "Directions & Distance", "description": "Track turns and movements to find final position and distance.", "icon": "🧭", "difficulty": "easy", "priority": "high", "order": 7,
+    "videos": [
+      { "label": "Direction Sense — Tricks & Shortcuts (CareerRide)", "url": "https://www.youtube.com/watch?v=x0WkptLF6oE", "note": "Full concept + turns, distance & shadow problems" }
+    ]
+  },
+  { "category": "logical", "topic": "ranking-order", "displayName": "Ranking & Order", "description": "Arrange people or objects by rank from partial clues.", "icon": "🏆", "difficulty": "easy", "priority": "medium", "order": 8 },
+  {
+    "category": "logical", "topic": "linear-seating-arrangement", "displayName": "Linear Seating Arrangement", "description": "Seat people in a row using the given conditions.", "icon": "🪑", "difficulty": "medium", "priority": "high", "order": 9,
+    "videos": [
+      { "label": "Puzzle & Seating Arrangement — Beginner to Pro", "url": "https://www.youtube.com/watch?v=ZaYHkWg_hf0", "note": "Step-by-step method for linear & row-based puzzles" }
+    ]
+  },
+  { "category": "logical", "topic": "circular-seating-arrangement", "displayName": "Circular Seating Arrangement", "description": "Seat people around a table, facing in or out.", "icon": "🔵", "difficulty": "hard", "priority": "low", "order": 10 },
+  { "category": "logical", "topic": "puzzles", "displayName": "Puzzles", "description": "Combine many conditions to fill grids and solve logic puzzles.", "icon": "🧩", "difficulty": "hard", "priority": "medium", "order": 11 },
+  { "category": "logical", "topic": "scheduling-assignments", "displayName": "Scheduling & Assignments", "description": "Match days, slots or people using constraint clues.", "icon": "🗓️", "difficulty": "hard", "priority": "low", "order": 12 },
+  {
+    "category": "logical", "topic": "coding-decoding", "displayName": "Coding Decoding", "description": "Crack the rule that turns words into codes, then decode new ones.", "icon": "🔐", "difficulty": "medium", "priority": "high", "order": 13,
+    "videos": [
+      { "label": "Coding & Decoding — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=wwN3mJ-b4FY", "note": "5.5M views — every coding type from basic to hard, ~1 hr" }
+    ]
+  },
+  {
+    "category": "logical", "topic": "syllogisms", "displayName": "Syllogisms", "description": "Decide which conclusions truly follow from the statements.", "icon": "📝", "difficulty": "medium", "priority": "high", "order": 14,
+    "videos": [
+      { "label": "Complete Syllogism — concepts & tricks (Adda247)", "url": "https://www.youtube.com/watch?v=InVTgVc7hL0", "note": "830K views — Venn method from basics to Mains-level" }
+    ]
+  },
+  {
+    "category": "logical", "topic": "statements-conclusions", "displayName": "Statements & Conclusions", "description": "Judge whether conclusions logically follow given statements.", "icon": "⚖️", "difficulty": "medium", "priority": "medium", "order": 15,
+    "videos": [
+      { "label": "Statement & Conclusion — Tricks & Shortcuts (CareerRide)", "url": "https://www.youtube.com/watch?v=8ZZp9LwXPDI", "note": "Placement-focused: treat statements as true, avoid assumptions" },
+      { "label": "Statement & Conclusions — SSC reasoning (Shobhit Sir)", "url": "https://www.youtube.com/watch?v=BZhxyaOyAUs", "note": "More worked exam questions for practice" }
+    ]
+  },
+  { "category": "logical", "topic": "statements-assumptions", "displayName": "Statements & Assumptions", "description": "Find the hidden assumption behind a statement.", "icon": "🤔", "difficulty": "medium", "priority": "medium", "order": 16 },
+  { "category": "logical", "topic": "decision-making", "displayName": "Decision Making", "description": "Apply given rules to pick the correct course of action.", "icon": "✅", "difficulty": "medium", "priority": "low", "order": 17 },
+  { "category": "logical", "topic": "data-sufficiency-reasoning", "displayName": "Data Sufficiency", "description": "Decide if the clues are enough to reach a definite answer.", "icon": "📊", "difficulty": "hard", "priority": "low", "order": 18 },
+  { "category": "logical", "topic": "analogies", "displayName": "Analogies", "description": "Complete 'A is to B as C is to ?' by finding the relationship.", "icon": "🔗", "difficulty": "easy", "priority": "medium", "order": 19 },
+  {
+    "category": "logical", "topic": "clocks", "displayName": "Clocks", "description": "Find angles, overlaps and times on an analog clock.", "icon": "🕐", "difficulty": "medium", "priority": "medium", "order": 20,
+    "videos": [
+      { "label": "Clock Reasoning — One Shot (concepts + tricks)", "url": "https://www.youtube.com/watch?v=DmdHVxTVx9o", "note": "148K views — angles, overlaps & special-angle problems" }
+    ]
+  },
+  { "category": "logical", "topic": "calendars", "displayName": "Calendars", "description": "Find the day of the week for any date using odd days.", "icon": "📅", "difficulty": "medium", "priority": "medium", "order": 21 },
+  { "category": "logical", "topic": "cubes", "displayName": "Cubes", "description": "Painted and cut cube problems — count faces and pieces.", "icon": "🧊", "difficulty": "medium", "priority": "low", "order": 22 },
+  { "category": "logical", "topic": "paper-folding-cutting", "displayName": "Paper Folding & Cutting", "description": "Predict how folded and cut paper looks when opened.", "icon": "📄", "difficulty": "medium", "priority": "low", "order": 23 },
+  { "category": "logical", "topic": "visual-reasoning", "displayName": "Visual Reasoning", "description": "Spot patterns, odd-ones-out and rules in images.", "icon": "👁️", "difficulty": "medium", "priority": "low", "order": 24 },
+  {
+    "category": "logical", "topic": "logical-venn-diagrams", "displayName": "Logical Venn Diagrams", "description": "Model relationships between groups using Venn diagrams.", "icon": "🔵", "difficulty": "medium", "priority": "medium", "order": 25,
+    "videos": [
+      { "label": "Venn Diagram reasoning — master any question", "url": "https://www.youtube.com/watch?v=N6VszpXQqjY", "note": "How to map group relationships & pick the right diagram" },
+      { "label": "Venn Diagram word problems (3 categories)", "url": "https://www.youtube.com/watch?v=zoSpsLhO0qg", "note": "Set-count problems solved step-by-step" }
+    ]
+  },
+  { "category": "logical", "topic": "spatial-reasoning", "displayName": "Spatial Reasoning", "description": "Rotate, fold and picture shapes in 2D and 3D.", "icon": "🧭", "difficulty": "hard", "priority": "low", "order": 26 },
+
+  {
+    "category": "verbal", "topic": "reading-comprehension", "displayName": "Reading Comprehension", "description": "Read a passage and answer questions on meaning, tone and detail.", "icon": "📖", "difficulty": "medium", "priority": "high", "order": 1,
+    "videos": [
+      { "label": "RC strategy — reading order & method (Rodha)", "url": "https://www.youtube.com/watch?v=mN1FYQCkRnw", "note": "Question-first vs passage-first, main-idea & elimination technique" }
+    ]
+  },
+  { "category": "verbal", "topic": "vocabulary", "displayName": "Vocabulary", "description": "Build word power — synonyms, antonyms and exact meanings.", "icon": "📚", "difficulty": "easy", "priority": "medium", "order": 2 },
+  {
+    "category": "verbal", "topic": "grammar", "displayName": "Grammar", "description": "Tenses, articles, prepositions and subject-verb agreement.", "icon": "✏️", "difficulty": "medium", "priority": "high", "order": 3,
+    "videos": [
+      { "label": "All 12 English verb tenses — complete lesson", "url": "https://www.youtube.com/watch?v=HWjRVkTNoNM", "note": "Clear structure + examples for every tense" },
+      { "label": "All 16 tenses in under 30 minutes", "url": "https://www.youtube.com/watch?v=Ljjiw9mC_Cg", "note": "Fast revision incl. conditional tenses" }
+    ]
+  },
+  { "category": "verbal", "topic": "word-completion", "displayName": "Word Completion", "description": "Fill missing letters to complete the correct word.", "icon": "🔤", "difficulty": "easy", "priority": "medium", "order": 4 },
+  {
+    "category": "verbal", "topic": "sentence-completion", "displayName": "Sentence Completion", "description": "Pick the word or phrase that best fills the blank.", "icon": "🔤", "difficulty": "easy", "priority": "high", "order": 5,
+    "videos": [
+      { "label": "Sentence Completion — tips & tricks (TCS NQT)", "url": "https://www.youtube.com/watch?v=uMDADABqUzI", "note": "Placement-focused: clue words, elimination, two-blank method" }
+    ]
+  },
+  { "category": "verbal", "topic": "sentence-correction", "displayName": "Sentence Correction", "description": "Rewrite faulty sentences into grammatically correct ones.", "icon": "🔁", "difficulty": "medium", "priority": "medium", "order": 6 },
+  {
+    "category": "verbal", "topic": "error-spotting", "displayName": "Error Spotting", "description": "Find the grammatical error in a given sentence.", "icon": "❌", "difficulty": "medium", "priority": "high", "order": 7,
+    "videos": [
+      { "label": "Spot the Error — Pronouns (CareerRide)", "url": "https://www.youtube.com/watch?v=NbT7hJT1yhQ", "note": "Concept + practice for pronoun errors" },
+      { "label": "Spot the Error — Prepositions (CareerRide)", "url": "https://www.youtube.com/watch?v=fMw3K2apZ5U", "note": "Omission/misuse of prepositions with practice sentences" }
+    ]
+  },
+  {
+    "category": "verbal", "topic": "para-jumbles", "displayName": "Para Jumbles", "description": "Reorder scrambled sentences into a logical paragraph.", "icon": "🔀", "difficulty": "hard", "priority": "medium", "order": 8,
+    "videos": [
+      { "label": "How to Solve Para Jumbles — step by step", "url": "https://www.youtube.com/watch?v=Uk_FB18t6_s", "note": "Opening sentence, mandatory pairs & connector logic" }
+    ]
+  },
+  { "category": "verbal", "topic": "sentence-joining", "displayName": "Sentence Joining", "description": "Combine two sentences correctly using connectors.", "icon": "🔗", "difficulty": "medium", "priority": "medium", "order": 9 },
+  { "category": "verbal", "topic": "formal-informal-sentences", "displayName": "Formal & Informal Sentences", "description": "Tell formal from informal tone and rewrite appropriately.", "icon": "🧾", "difficulty": "medium", "priority": "low", "order": 10 },
+  {
+    "category": "verbal", "topic": "idioms-phrases", "displayName": "Idioms & Phrases", "description": "Understand common idioms and their real meanings.", "icon": "💬", "difficulty": "easy", "priority": "medium", "order": 11,
+    "videos": [
+      { "label": "Idioms & Phrases asked in SSC exams (200+)", "url": "https://www.youtube.com/watch?v=GgzkV1BqREU", "note": "Previous-year idioms with meanings & memory tricks" },
+      { "label": "50 most important idioms & phrases in 10 min", "url": "https://www.youtube.com/watch?v=tTpCqZKNgUE", "note": "Quick high-frequency revision" }
+    ]
+  },
+  { "category": "verbal", "topic": "critical-reasoning", "displayName": "Critical Reasoning", "description": "Analyse arguments — assumptions, strengthen, weaken and conclude.", "icon": "🧠", "difficulty": "hard", "priority": "low", "order": 12 },
+  { "category": "verbal", "topic": "sentence-condensation", "displayName": "Sentence Condensation", "description": "Shorten a long sentence while keeping its meaning.", "icon": "✂️", "difficulty": "hard", "priority": "low", "order": 13 },
+  { "category": "verbal", "topic": "passage-recall", "displayName": "Passage Recall", "description": "Read, remember and answer from a passage quickly.", "icon": "🧠", "difficulty": "medium", "priority": "low", "order": 14 },
+  { "category": "verbal", "topic": "professional-email-writing", "displayName": "Professional Email Writing", "description": "Write clear, correct workplace emails.", "icon": "📧", "difficulty": "medium", "priority": "low", "order": 15 },
+
+  { "category": "data-interpretation", "topic": "bar-graphs", "displayName": "Bar Graphs", "description": "Read values off bar charts and compare quantities.", "icon": "📊", "difficulty": "easy", "priority": "high", "order": 1 },
+  {
+    "category": "data-interpretation", "topic": "pie-charts", "displayName": "Pie Charts", "description": "Turn percentages and angles in a pie chart into real numbers.", "icon": "🥧", "difficulty": "easy", "priority": "high", "order": 2,
+    "videos": [
+      { "label": "Pie Chart — Shortcuts & Tricks (CareerRide)", "url": "https://www.youtube.com/watch?v=fA8cQW-nmIw", "note": "Angle↔percent conversion + smart option-elimination" }
+    ]
+  },
+  { "category": "data-interpretation", "topic": "line-graphs", "displayName": "Line Graphs", "description": "Track trends over time and read exact values.", "icon": "📈", "difficulty": "medium", "priority": "medium", "order": 3 },
+  { "category": "data-interpretation", "topic": "tables", "displayName": "Tables", "description": "Pull and combine numbers from data tables.", "icon": "📋", "difficulty": "medium", "priority": "medium", "order": 4 },
+  { "category": "data-interpretation", "topic": "caselets", "displayName": "Caselets", "description": "Solve DI where the data is a short paragraph, not a chart.", "icon": "📝", "difficulty": "hard", "priority": "low", "order": 5 },
+  { "category": "data-interpretation", "topic": "mixed-data-interpretation", "displayName": "Mixed Data Interpretation", "description": "Sets that combine multiple chart types in one question.", "icon": "🔀", "difficulty": "hard", "priority": "low", "order": 6 },
+  { "category": "data-interpretation", "topic": "venn-diagram-di", "displayName": "Venn Diagram Based DI", "description": "Interpret overlapping-set data using Venn diagrams.", "icon": "🔵", "difficulty": "medium", "priority": "medium", "order": 7 },
+  { "category": "data-interpretation", "topic": "graphical-di", "displayName": "Graphical DI", "description": "Answer questions from mixed graphical data.", "icon": "📊", "difficulty": "medium", "priority": "medium", "order": 8 },
+  { "category": "data-interpretation", "topic": "tabular-di", "displayName": "Tabular DI", "description": "Interpret and calculate from detailed data tables.", "icon": "📋", "difficulty": "medium", "priority": "medium", "order": 9 }
+]
