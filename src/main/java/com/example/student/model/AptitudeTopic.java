@@ -27,6 +27,10 @@ public class AptitudeTopic {
     // quantitative | logical | verbal | data-interpretation
     private String category;
 
+    // Slug of the group this topic belongs to (e.g. "number-basics").
+    // A group nests topics under a category: category → group → topic.
+    private String group;
+
     // URL-safe slug, unique per topic — used as the :topicId route param
     @Indexed(unique = true)
     private String topic;
@@ -42,7 +46,7 @@ public class AptitudeTopic {
     // "high" = must-know / most-asked, "low" = advanced / rarely asked.
     private String priority;
 
-    private int order;            // display order inside its category (syllabus order)
+    private int order;            // display order inside its group (syllabus order)
     private boolean isActive;
 
     // ── Learning modes (added to the DB; null until authored) ────────────────
@@ -66,7 +70,8 @@ public class AptitudeTopic {
         private String plainMeaning;      // what it means in plain English
         private String mathIntro;         // bridge into the math
         private List<Formula> formulas;   // each formula broken down word by word
-        private List<WorkedExample> examples; // 3 examples: simple → medium → hard
+        private List<WorkedExample> examples; // (legacy) simple → medium → hard examples
+        private List<QuestionType> questionTypes; // every exam question pattern, fully solved
         private List<String> commonMistakes;
         private String memoryTrick;
     }
@@ -75,7 +80,18 @@ public class AptitudeTopic {
     public static class Formula {
         private String label;
         private String formula;
-        private String breakdown;   // word-by-word, not just symbols
+        private String breakdown;   // what each part means + why it is true
+        private String example;     // one worked number example
+    }
+
+    /** A single exam question pattern, explained and fully solved. */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class QuestionType {
+        private String name;        // clear name for the pattern
+        private String idea;        // what makes it different + what it gives/asks
+        private String problem;     // a real example with numbers
+        private List<Step> steps;   // every step, with the reason
+        private String answer;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -95,14 +111,44 @@ public class AptitudeTopic {
     // ── MODE 2: Crack It ─────────────────────────────────────────────────────
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class CrackMode {
-        private String theTrick;              // one-sentence what the shortcut does
-        private Shortcut shortcut;            // the shortcut method itself
-        private List<CrackExample> examples;  // SAME 3 examples, shortcut-only
-        private List<Comparison> comparison;  // normal (2 min) vs shortcut (20 sec)
+        private String oneLine;               // the whole topic in one memorable line
+        private String theTrick;              // (legacy) one-sentence what the shortcut does
+        private Shortcut shortcut;            // (legacy) single shortcut method
+        private List<ShortcutType> shortcuts; // one shortcut per question type
+        private List<PatternClue> patternGuide; // read-the-question → pick-the-trick
+        private List<DrillItem> drill;        // 60-second self-test
+        private List<CrackExample> examples;  // (legacy) shortcut-only examples
+        private List<Comparison> comparison;  // (legacy) normal vs shortcut
         private String whyItWorks;            // 2 simple lines
         private List<String> whenWorks;
         private List<String> whenNot;
         private String practicePattern;       // the exact question type this solves
+    }
+
+    /** A shortcut for one question type — with where numbers go, timing and limits. */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class ShortcutType {
+        private String name;             // matches a Mode-1 question type
+        private String method;           // the shortcut in one line
+        private String whereNumbersGo;   // exactly where each number from the question goes
+        private String example;          // the same example solved with the shortcut only
+        private String timeSaved;        // normal X steps vs shortcut Y steps
+        private String whenWorks;
+        private String whenFails;
+    }
+
+    /** Read-the-question signal → which trick to use. */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class PatternClue {
+        private String signal;   // the exact words/phrases in the question
+        private String use;      // the trick to reach for
+    }
+
+    /** One quick self-test item (question + final answer only). */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class DrillItem {
+        private String question;
+        private String answer;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

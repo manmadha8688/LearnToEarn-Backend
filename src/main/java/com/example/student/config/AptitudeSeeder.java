@@ -1,8 +1,11 @@
 package com.example.student.config;
 
+import com.example.student.model.AptitudeGroup;
 import com.example.student.model.AptitudeTopic;
+import com.example.student.repository.AptitudeGroupRepository;
 import com.example.student.repository.AptitudeTopicRepository;
 import com.example.student.service.CacheService;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,17 +23,18 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Seeds the {@code aptitude_topics} collection from
- * {@code resources/seed/aptitude-topics.json} on startup.
+ * Seeds the {@code aptitude_groups} and {@code aptitude_topics} collections from
+ * {@code resources/seed/aptitude-taxonomy.json} on startup.
  *
- * The JSON is the single authoring source — ALL topic data (metadata + the two
- * learning modes) lives in the database after seeding. Only the 4 category cards
- * are static in the frontend.
+ * The taxonomy nests as category → group → topic. Only the 4 category cards are
+ * static in the frontend; groups and topics (metadata + the two learning modes)
+ * live in the database.
  *
  * Idempotent + self-healing:
- *  - new slugs are inserted
- *  - existing topics have their metadata refreshed and any newly-authored
- *    learnIt/crackIt lesson content backfilled, without changing their _id
+ *  - new groups/topics are inserted
+ *  - existing ones have their metadata refreshed, keeping their {@code _id}
+ *  - authored lesson content (learnIt/crackIt) is preserved and only backfilled
+ *  - stale groups/topics no longer in the JSON are pruned
  *
  * No quiz questions are seeded here — those come later.
  */
@@ -39,71 +43,143 @@ import java.util.Set;
 public class AptitudeSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(AptitudeSeeder.class);
-    private static final String SEED_FILE = "seed/aptitude-topics.json";
+    private static final String SEED_FILE = "seed/aptitude-taxonomy.json";
 
-    private final AptitudeTopicRepository repo;
+    private final AptitudeTopicRepository topicRepo;
+    private final AptitudeGroupRepository groupRepo;
     private final CacheService cacheService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AptitudeSeeder(AptitudeTopicRepository repo, CacheService cacheService) {
-        this.repo = repo;
+    public AptitudeSeeder(AptitudeTopicRepository topicRepo,
+                          AptitudeGroupRepository groupRepo,
+                          CacheService cacheService) {
+        this.topicRepo = topicRepo;
+        this.groupRepo = groupRepo;
         this.cacheService = cacheService;
+    }
+
+    // ── JSON shape (nested) ──────────────────────────────────────────────────
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class SeedCategory {
+        public String category;
+        public List<SeedGroup> groups = new ArrayList<>();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class SeedGroup {
+        public String slug;
+        public String displayName;
+        public String description;
+        public String icon;
+        public int order;
+        public List<AptitudeTopic> topics = new ArrayList<>();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void seed() {
         try {
-            List<AptitudeTopic> defaults = load();
-            if (defaults.isEmpty()) {
-                log.warn("Aptitude seeder: no topics found in {} — skipping.", SEED_FILE);
+            List<SeedCategory> taxonomy = load();
+            if (taxonomy.isEmpty()) {
+                log.warn("Aptitude seeder: no data found in {} — skipping.", SEED_FILE);
                 return;
             }
 
-            List<AptitudeTopic> toInsert = new ArrayList<>();
-            int updated = 0;
+            int gInserted = 0, gUpdated = 0, tInserted = 0, tUpdated = 0;
+            Set<String> keepGroups = new HashSet<>();
+            Set<String> keepTopics = new HashSet<>();
+            List<AptitudeTopic> topicsToInsert = new ArrayList<>();
 
-            for (AptitudeTopic def : defaults) {
-                def.setActive(true);
-                Optional<AptitudeTopic> existingOpt = repo.findByTopic(def.getTopic());
-                if (existingOpt.isEmpty()) {
-                    toInsert.add(def);
-                    continue;
-                }
-                AptitudeTopic existing = existingOpt.get();
-                if (refresh(existing, def)) {
-                    repo.save(existing);
-                    updated++;
+            for (SeedCategory cat : taxonomy) {
+                int groupOrder = 0;
+                for (SeedGroup g : cat.groups) {
+                    groupOrder++;
+                    keepGroups.add(g.slug);
+
+                    // ── Group upsert ──
+                    Optional<AptitudeGroup> gExistingOpt = groupRepo.findBySlug(g.slug);
+                    if (gExistingOpt.isEmpty()) {
+                        groupRepo.save(AptitudeGroup.builder()
+                                .category(cat.category)
+                                .slug(g.slug)
+                                .displayName(g.displayName)
+                                .description(g.description)
+                                .icon(g.icon)
+                                .order(g.order != 0 ? g.order : groupOrder)
+                                .isActive(true)
+                                .build());
+                        gInserted++;
+                    } else if (refreshGroup(gExistingOpt.get(), cat.category, g, groupOrder)) {
+                        groupRepo.save(gExistingOpt.get());
+                        gUpdated++;
+                    }
+
+                    // ── Topics upsert ──
+                    int topicOrder = 0;
+                    for (AptitudeTopic def : g.topics) {
+                        topicOrder++;
+                        keepTopics.add(def.getTopic());
+                        def.setCategory(cat.category);
+                        def.setGroup(g.slug);
+                        if (def.getOrder() == 0) def.setOrder(topicOrder);
+                        def.setActive(true);
+
+                        Optional<AptitudeTopic> tExistingOpt = topicRepo.findByTopic(def.getTopic());
+                        if (tExistingOpt.isEmpty()) {
+                            topicsToInsert.add(def);
+                            tInserted++;
+                        } else if (refreshTopic(tExistingOpt.get(), def)) {
+                            topicRepo.save(tExistingOpt.get());
+                            tUpdated++;
+                        }
+                    }
                 }
             }
 
-            if (!toInsert.isEmpty()) repo.saveAll(toInsert);
+            if (!topicsToInsert.isEmpty()) topicRepo.saveAll(topicsToInsert);
 
-            // Prune: the JSON is the single source of truth. Delete any topic whose
-            // slug is no longer defined so the collection has zero stale/duplicate
-            // entries (e.g. after a topic is split or renamed). Authored lessons on
-            // still-defined slugs (percentages, time-speed-distance) are untouched.
-            Set<String> keep = new HashSet<>();
-            for (AptitudeTopic def : defaults) keep.add(def.getTopic());
-            List<AptitudeTopic> orphans = new ArrayList<>();
-            for (AptitudeTopic t : repo.findAll()) {
-                if (!keep.contains(t.getTopic())) orphans.add(t);
+            // ── Prune stale entries (JSON is the single source of truth) ──
+            List<AptitudeGroup> orphanGroups = new ArrayList<>();
+            for (AptitudeGroup g : groupRepo.findAll()) {
+                if (!keepGroups.contains(g.getSlug())) orphanGroups.add(g);
             }
-            if (!orphans.isEmpty()) repo.deleteAll(orphans);
+            if (!orphanGroups.isEmpty()) groupRepo.deleteAll(orphanGroups);
 
-            if (!toInsert.isEmpty() || updated > 0 || !orphans.isEmpty()) cacheService.evictAll("aptitude");
+            List<AptitudeTopic> orphanTopics = new ArrayList<>();
+            for (AptitudeTopic t : topicRepo.findAll()) {
+                if (!keepTopics.contains(t.getTopic())) orphanTopics.add(t);
+            }
+            if (!orphanTopics.isEmpty()) topicRepo.deleteAll(orphanTopics);
 
-            log.info("Aptitude seeder: {} inserted, {} updated, {} pruned, {} total defined.",
-                    toInsert.size(), updated, orphans.size(), defaults.size());
+            boolean changed = gInserted + gUpdated + tInserted + tUpdated
+                    + orphanGroups.size() + orphanTopics.size() > 0;
+            if (changed) cacheService.evictAll("aptitude");
+
+            log.info("Aptitude seeder: groups[{} new, {} upd, {} pruned] topics[{} new, {} upd, {} pruned].",
+                    gInserted, gUpdated, orphanGroups.size(),
+                    tInserted, tUpdated, orphanTopics.size());
         } catch (Exception e) {
             log.error("Aptitude seeder failed — app continues without seeding: {}", e.getMessage(), e);
         }
     }
 
-    /** Keep DB metadata in sync with the JSON and backfill lessons. Returns true if changed. */
-    private boolean refresh(AptitudeTopic existing, AptitudeTopic def) {
+    private boolean refreshGroup(AptitudeGroup existing, String category, SeedGroup def, int fallbackOrder) {
+        boolean changed = false;
+        int order = def.order != 0 ? def.order : fallbackOrder;
+        if (!equalsSafe(existing.getCategory(), category))       { existing.setCategory(category); changed = true; }
+        if (!equalsSafe(existing.getDisplayName(), def.displayName)) { existing.setDisplayName(def.displayName); changed = true; }
+        if (!equalsSafe(existing.getDescription(), def.description)) { existing.setDescription(def.description); changed = true; }
+        if (!equalsSafe(existing.getIcon(), def.icon))           { existing.setIcon(def.icon); changed = true; }
+        if (existing.getOrder() != order)                        { existing.setOrder(order); changed = true; }
+        if (!existing.isActive())                                { existing.setActive(true); changed = true; }
+        return changed;
+    }
+
+    /** Keep DB topic metadata in sync with the JSON and backfill lessons. Returns true if changed. */
+    private boolean refreshTopic(AptitudeTopic existing, AptitudeTopic def) {
         boolean changed = false;
 
         if (!equalsSafe(existing.getCategory(), def.getCategory()))       { existing.setCategory(def.getCategory()); changed = true; }
+        if (!equalsSafe(existing.getGroup(), def.getGroup()))             { existing.setGroup(def.getGroup()); changed = true; }
         if (!equalsSafe(existing.getDisplayName(), def.getDisplayName())) { existing.setDisplayName(def.getDisplayName()); changed = true; }
         if (!equalsSafe(existing.getDescription(), def.getDescription())) { existing.setDescription(def.getDescription()); changed = true; }
         if (!equalsSafe(existing.getIcon(), def.getIcon()))              { existing.setIcon(def.getIcon()); changed = true; }
@@ -116,9 +192,9 @@ public class AptitudeSeeder {
         if (existing.getLearnIt() == null && def.getLearnIt() != null) { existing.setLearnIt(def.getLearnIt()); changed = true; }
         if (existing.getCrackIt() == null && def.getCrackIt() != null) { existing.setCrackIt(def.getCrackIt()); changed = true; }
 
-        // Videos are curated in the JSON (source of truth) — keep DB in sync whenever
-        // the JSON provides a list that differs. An empty/absent JSON list leaves the
-        // DB untouched (so we never wipe existing videos by omission).
+        // Videos are curated in the JSON (source of truth) — sync whenever the JSON
+        // provides a list that differs. An empty/absent JSON list leaves the DB
+        // untouched (so we never wipe existing videos by omission).
         if (def.getVideos() != null && !def.getVideos().isEmpty()
                 && !sameVideos(existing.getVideos(), def.getVideos())) {
             existing.setVideos(def.getVideos());
@@ -142,11 +218,11 @@ public class AptitudeSeeder {
         return a == null ? b == null : a.equals(b);
     }
 
-    private List<AptitudeTopic> load() throws Exception {
+    private List<SeedCategory> load() throws Exception {
         ClassPathResource resource = new ClassPathResource(SEED_FILE);
         if (!resource.exists()) return List.of();
         try (InputStream in = resource.getInputStream()) {
-            AptitudeTopic[] arr = objectMapper.readValue(in, AptitudeTopic[].class);
+            SeedCategory[] arr = objectMapper.readValue(in, SeedCategory[].class);
             return new ArrayList<>(List.of(arr));
         }
     }

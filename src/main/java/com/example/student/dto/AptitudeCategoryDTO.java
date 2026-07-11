@@ -10,5 +10,6 @@ import lombok.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AptitudeCategoryDTO {
     private String category;   // quantitative | logical | verbal | data-interpretation
+    private long groupCount;
     private long topicCount;
 }

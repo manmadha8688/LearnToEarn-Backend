@@ -25,6 +25,14 @@ public interface AptitudeTopicRepository extends MongoRepository<AptitudeTopic, 
            sort = "{ 'order': 1 }")
     List<AptitudeTopic> findCategoryLight(String category);
 
+    /**
+     * Active topics in one group — WITHOUT the heavy lesson blocks (list view).
+     */
+    @Query(value = "{ 'group': ?0, 'isActive': true }",
+           fields = "{ 'learnIt': 0, 'crackIt': 0 }",
+           sort = "{ 'order': 1 }")
+    List<AptitudeTopic> findGroupLight(String group);
+
     /** Full topic (includes learnIt/crackIt) — single-topic view. */
     Optional<AptitudeTopic> findByTopic(String topic);
 
