@@ -1,6 +1,9 @@
 HELP.md
 target/
 src/main/resources/application-local.properties
+
+# Runtime logs (never commit — backend.log/run.log/boot.log are dev artifacts)
+*.log
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

@@ -33,6 +33,15 @@ public interface AptitudeTopicRepository extends MongoRepository<AptitudeTopic, 
            sort = "{ 'order': 1 }")
     List<AptitudeTopic> findGroupLight(String group);
 
+    /**
+     * Admin list of topics in a group — includes INACTIVE topics, without the
+     * heavy lesson blocks. Used by the admin panel (metadata + status only).
+     */
+    @Query(value = "{ 'group': ?0 }",
+           fields = "{ 'learnIt': 0, 'crackIt': 0 }",
+           sort = "{ 'order': 1 }")
+    List<AptitudeTopic> findGroupAdmin(String group);
+
     /** Full topic (includes learnIt/crackIt) — single-topic view. */
     Optional<AptitudeTopic> findByTopic(String topic);
 

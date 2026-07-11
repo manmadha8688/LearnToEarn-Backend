@@ -12,4 +12,9 @@ public interface AptitudeGroupRepository extends MongoRepository<AptitudeGroup, 
     List<AptitudeGroup> findByCategoryAndIsActiveTrueOrderByOrderAsc(String category);
 
     Optional<AptitudeGroup> findBySlug(String slug);
+
+    /** All groups (incl. inactive) for the admin panel, grouped by category then order. */
+    List<AptitudeGroup> findAllByOrderByCategoryAscOrderAsc();
+
+    boolean existsBySlug(String slug);
 }

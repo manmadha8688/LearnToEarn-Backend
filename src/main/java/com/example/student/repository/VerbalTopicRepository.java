@@ -26,6 +26,12 @@ public interface VerbalTopicRepository extends MongoRepository<VerbalTopic, Stri
            sort = "{ 'order': 1 }")
     List<VerbalTopic> findGroupLight(String group);
 
+    /** Admin list of topics in a group — includes INACTIVE, without the lesson block. */
+    @Query(value = "{ 'group': ?0 }",
+           fields = "{ 'lesson': 0 }",
+           sort = "{ 'order': 1 }")
+    List<VerbalTopic> findGroupAdmin(String group);
+
     /** Full topic (includes lesson) — single-topic view. */
     Optional<VerbalTopic> findByTopic(String topic);
 

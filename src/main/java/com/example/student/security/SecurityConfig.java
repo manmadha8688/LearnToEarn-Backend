@@ -52,6 +52,12 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Aptitude browsing is public (categories → groups → topic lists),
+                // but a topic's lesson content and its practice questions require
+                // login. Evaluated before the broad /api/aptitude/** permitAll below,
+                // so these two win. Note "/topic/**" (singular, the lesson) is distinct
+                // from "/topics/**" (plural, the public list).
+                .requestMatchers("/api/aptitude/topic/**", "/api/aptitude/questions/**").authenticated()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/guest", "/api/auth/logout", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/forgot-password/verify-otp", "/api/auth/reset-password", "/api/ping", "/api/public-stats", "/api/public/profile/**", "/api/missions", "/api/problems", "/api/problems/**", "/api/aptitude", "/api/aptitude/**", "/api/walkins", "/api/walkins/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/feedback").permitAll()
                 .anyRequest().authenticated()

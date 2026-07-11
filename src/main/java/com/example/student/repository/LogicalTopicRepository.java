@@ -26,6 +26,12 @@ public interface LogicalTopicRepository extends MongoRepository<LogicalTopic, St
            sort = "{ 'order': 1 }")
     List<LogicalTopic> findGroupLight(String group);
 
+    /** Admin list of topics in a group — includes INACTIVE, without the lesson block. */
+    @Query(value = "{ 'group': ?0 }",
+           fields = "{ 'lesson': 0 }",
+           sort = "{ 'order': 1 }")
+    List<LogicalTopic> findGroupAdmin(String group);
+
     /** Full topic (includes lesson) — single-topic view. */
     Optional<LogicalTopic> findByTopic(String topic);
 

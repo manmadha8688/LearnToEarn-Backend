@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -83,13 +84,14 @@ public class AptitudeService {
         });
     }
 
-    /** All active groups in a category, each with its live topic count. */
+    /** All active groups in a category, each with its live topic count + topic names. */
     public List<AptitudeGroupDTO> getGroups(String category) {
         return cacheService.get("aptitude", "groups:" + category, () -> {
             List<AptitudeGroup> groups = groupRepo.findByCategoryAndIsActiveTrueOrderByOrderAsc(category);
-            Map<String, Long> counts = topicCountsByGroup(category);
+            Map<String, List<String>> topicNames = topicNamesByGroup(category);
             List<AptitudeGroupDTO> out = new ArrayList<>();
             for (AptitudeGroup g : groups) {
+                List<String> names = topicNames.getOrDefault(g.getSlug(), List.of());
                 out.add(AptitudeGroupDTO.builder()
                         .slug(g.getSlug())
                         .category(g.getCategory())
@@ -97,7 +99,8 @@ public class AptitudeService {
                         .description(g.getDescription())
                         .icon(g.getIcon())
                         .order(g.getOrder())
-                        .topicCount(counts.getOrDefault(g.getSlug(), 0L))
+                        .topicCount(names.size())
+                        .topicNames(names)
                         .build());
             }
             return out;
@@ -121,11 +124,14 @@ public class AptitudeService {
      */
     public Object getTopic(String topicId) {
         return cacheService.get("aptitude", "topic:" + topicId, () -> {
+            // Inactive topics are "hidden": invisible in navigation AND unreachable
+            // by direct URL, so the admin Active toggle actually takes them offline.
             AptitudeTopic quant = topicRepo.findByTopic(topicId).orElse(null);
-            if (quant != null) return quant;
+            if (quant != null) return quant.isActive() ? quant : null;
             LogicalTopic logical = logicalRepo.findByTopic(topicId).orElse(null);
-            if (logical != null) return logical;
-            return verbalRepo.findByTopic(topicId).orElse(null);
+            if (logical != null) return logical.isActive() ? logical : null;
+            VerbalTopic verbal = verbalRepo.findByTopic(topicId).orElse(null);
+            return (verbal != null && verbal.isActive()) ? verbal : null;
         });
     }
 
@@ -135,16 +141,23 @@ public class AptitudeService {
                 () -> questionRepo.findByTopicAndIsActiveTrueOrderByOrderAsc(topicId));
     }
 
-    /** group-slug → active-topic count, reading from the collection that owns the category. */
-    private Map<String, Long> topicCountsByGroup(String category) {
-        Map<String, Long> counts = new HashMap<>();
+    /**
+     * group-slug → ordered active-topic display names, from the collection that
+     * owns the category. Topic count is derived from the list size, so the group
+     * card can also be searched by the topics it contains.
+     */
+    private Map<String, List<String>> topicNamesByGroup(String category) {
+        Map<String, List<String>> names = new LinkedHashMap<>();
         if ("logical".equals(category)) {
-            for (LogicalTopic t : logicalRepo.findActiveLight()) counts.merge(t.getGroup(), 1L, Long::sum);
+            for (LogicalTopic t : logicalRepo.findActiveLight())
+                names.computeIfAbsent(t.getGroup(), k -> new ArrayList<>()).add(t.getDisplayName());
         } else if ("verbal".equals(category)) {
-            for (VerbalTopic t : verbalRepo.findActiveLight()) counts.merge(t.getGroup(), 1L, Long::sum);
+            for (VerbalTopic t : verbalRepo.findActiveLight())
+                names.computeIfAbsent(t.getGroup(), k -> new ArrayList<>()).add(t.getDisplayName());
         } else {
-            for (AptitudeTopic t : topicRepo.findCategoryLight(category)) counts.merge(t.getGroup(), 1L, Long::sum);
+            for (AptitudeTopic t : topicRepo.findCategoryLight(category))
+                names.computeIfAbsent(t.getGroup(), k -> new ArrayList<>()).add(t.getDisplayName());
         }
-        return counts;
+        return names;
     }
 }
