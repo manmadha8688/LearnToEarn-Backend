@@ -3,6 +3,7 @@ package com.example.student.service;
 import com.example.student.dto.ProgressSummaryDTO;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Concept;
+import com.example.student.model.QuizAttempt;
 import com.example.student.model.Roadmap;
 import com.example.student.model.Subject;
 import com.example.student.model.User;
@@ -143,10 +144,41 @@ public class ProgressService {
         return amount;
     }
 
+    /** Remove XP (used when uncompleting a concept). Never drops below zero. */
+    public int deductXp(String userId, int amount) {
+        if (amount <= 0) return 0;
+        userRepository.findById(userId).ifPresent(user -> {
+            long newXp = Math.max(0, user.getXp() - amount);
+            user.setXp(newXp);
+            user.setLevel(Math.max(1, (int)(newXp / 200)));
+            user.setRank(computeRank(newXp));
+            userRepository.save(user);
+        });
+        cacheService.evict("progress", "summary:" + userId);
+        return amount;
+    }
+
+    /**
+     * Fully resets a concept: removes the progress record, reverses the XP it awarded,
+     * and clears its quiz attempts so status no longer reports "passed" (and the retry
+     * cooldown is lifted). Previously this only deleted the progress row, which left XP
+     * inflated and the concept still showing as cleared via a lingering passed attempt.
+     */
+    @Transactional
     public Map<String, Object> uncompleteConcept(String conceptId, String userId) {
         progressRepository.deleteByUserIdAndConceptId(userId, conceptId);
+
+        List<QuizAttempt> attempts = quizAttemptRepository
+                .findByUserIdAndTypeAndRefId(userId, "CONCEPT", conceptId);
+        int refund = attempts.stream()
+                .filter(QuizAttempt::isPassed)
+                .mapToInt(QuizAttempt::getXpEarned)
+                .sum();
+        if (!attempts.isEmpty()) quizAttemptRepository.deleteAll(attempts);
+        if (refund > 0) deductXp(userId, refund);
+
         cacheService.evict("progress", "summary:" + userId);
-        return Map.of("message", "Unmarked");
+        return Map.of("message", "Unmarked", "xpRemoved", refund);
     }
 
     public ProgressSummaryDTO getProgressSummary(String userId) {

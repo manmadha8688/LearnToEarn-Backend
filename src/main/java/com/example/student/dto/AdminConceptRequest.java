@@ -40,6 +40,7 @@ public class AdminConceptRequest {
     @Size(max = 2000)
     private String tip;
     private List<String> commonMistakes;
+    private List<Concept.TrickyProblem> trickyProblems;
 
     @Size(max = 10)
     private String rank;

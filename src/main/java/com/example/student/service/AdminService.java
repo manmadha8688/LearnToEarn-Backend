@@ -37,6 +37,8 @@ public class AdminService {
     private final WalkInRepository walkInRepository;
     private final BookmarkRepository bookmarkRepository;
     private final LoginEventRepository loginEventRepository;
+    private final CertificateRepository certificateRepository;
+    private final UserDailyQuestRepository dailyQuestRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -55,7 +57,9 @@ public class AdminService {
                         ReportRepository reportRepository,
                         WalkInRepository walkInRepository,
                         BookmarkRepository bookmarkRepository,
-                        LoginEventRepository loginEventRepository) {
+                        LoginEventRepository loginEventRepository,
+                        CertificateRepository certificateRepository,
+                        UserDailyQuestRepository dailyQuestRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -74,6 +78,8 @@ public class AdminService {
         this.walkInRepository = walkInRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.loginEventRepository = loginEventRepository;
+        this.certificateRepository = certificateRepository;
+        this.dailyQuestRepository = dailyQuestRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
@@ -259,6 +265,8 @@ public class AdminService {
         roadmapBadgeRepository.deleteByUserId(userId);
         enrollmentRepository.deleteByUserId(userId);
         bookmarkRepository.deleteByUserId(userId);
+        certificateRepository.deleteByUserId(userId);
+        dailyQuestRepository.deleteByUserId(userId);
     }
 
     // ─── SUBJECTS ────────────────────────────────────────────────────────────
@@ -334,6 +342,7 @@ public class AdminService {
         progressRepository.deleteBySubjectId(id);
         questionRepository.deleteBySubjectId(id);
         badgeRepository.deleteBySubjectId(id);
+        certificateRepository.deleteByTypeAndRefId("SUBJECT", id);
         roadmapSubjectRepository.deleteBySubjectId(id);
         conceptRepository.deleteBySubjectId(id);
         subjectRepository.deleteById(id);
@@ -377,6 +386,7 @@ public class AdminService {
         c.setKeyPoints(req.getKeyPoints());
         c.setTip(req.getTip());
         c.setCommonMistakes(req.getCommonMistakes());
+        c.setTrickyProblems(req.getTrickyProblems());
         c.setRank(req.getRank() != null ? req.getRank() : "E");
         c.setEstimatedMinutes(req.getEstimatedMinutes() > 0 ? req.getEstimatedMinutes() : 15);
         c.setOrderIndex(newIdx);
@@ -410,6 +420,7 @@ public class AdminService {
         if (req.getKeyPoints() != null) c.setKeyPoints(req.getKeyPoints());
         if (req.getTip() != null) c.setTip(req.getTip());
         if (req.getCommonMistakes() != null) c.setCommonMistakes(req.getCommonMistakes());
+        if (req.getTrickyProblems() != null) c.setTrickyProblems(req.getTrickyProblems());
         if (req.getRank() != null) c.setRank(req.getRank());
         if (req.getVideoUrl() != null) c.setVideoUrl(req.getVideoUrl());
         if (req.getVideoTitle() != null) c.setVideoTitle(req.getVideoTitle());
@@ -524,6 +535,7 @@ public class AdminService {
             throw new ResourceNotFoundException("Roadmap not found");
         quizAttemptRepository.deleteByTypeAndRefId("ROADMAP", id);
         roadmapBadgeRepository.deleteByRoadmapId(id);
+        certificateRepository.deleteByTypeAndRefId("ROADMAP", id);
         enrollmentRepository.deleteByRoadmapId(id);
         roadmapSubjectRepository.deleteByRoadmapId(id);
         roadmapRepository.deleteById(id);

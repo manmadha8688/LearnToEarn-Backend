@@ -82,6 +82,7 @@ public class ConceptService {
         dto.setKeyPoints(concept.getKeyPoints());
         dto.setTip(concept.getTip());
         dto.setCommonMistakes(concept.getCommonMistakes());
+        dto.setTrickyProblems(concept.getTrickyProblems());
         dto.setRank(concept.getRank() != null ? concept.getRank() : "E");
         dto.setOrderIndex(concept.getOrderIndex());
         dto.setEstimatedMinutes(concept.getEstimatedMinutes());

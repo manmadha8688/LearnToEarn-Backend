@@ -9,11 +9,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class QuizService {
+
+    // Quiz timestamps + retry cooldowns use IST so "today", daily bonuses, and cooldown
+    // windows stay consistent with ProgressService regardless of server timezone (Render = UTC).
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
     private final QuestionRepository questionRepo;
     private final QuizAttemptRepository attemptRepo;
@@ -22,8 +27,10 @@ public class QuizService {
     private final ConceptRepository conceptRepo;
     private final SubjectRepository subjectRepo;
     private final RoadmapSubjectRepository roadmapSubjectRepo;
+    private final RoadmapRepository roadmapRepo;
     private final ProgressService progressService;
     private final UserConceptProgressRepository progressRepo;
+    private final CertificateService certificateService;
     private final CacheService cacheService;
 
     public QuizService(QuestionRepository questionRepo,
@@ -33,8 +40,10 @@ public class QuizService {
                        ConceptRepository conceptRepo,
                        SubjectRepository subjectRepo,
                        RoadmapSubjectRepository roadmapSubjectRepo,
+                       RoadmapRepository roadmapRepo,
                        ProgressService progressService,
                        UserConceptProgressRepository progressRepo,
+                       CertificateService certificateService,
                        CacheService cacheService) {
         this.questionRepo = questionRepo;
         this.attemptRepo = attemptRepo;
@@ -43,8 +52,10 @@ public class QuizService {
         this.conceptRepo = conceptRepo;
         this.subjectRepo = subjectRepo;
         this.roadmapSubjectRepo = roadmapSubjectRepo;
+        this.roadmapRepo = roadmapRepo;
         this.progressService = progressService;
         this.progressRepo = progressRepo;
+        this.certificateService = certificateService;
         this.cacheService = cacheService;
     }
 
@@ -137,9 +148,9 @@ public class QuizService {
         LocalDateTime nextRetryAt = null;
         if (!passed) {
             nextRetryAt = switch (type) {
-                case "CONCEPT" -> LocalDateTime.now().plusMinutes(QuizConstants.CONCEPT_RETRY_MINUTES);
-                case "SUBJECT" -> LocalDateTime.now().plusHours(QuizConstants.SUBJECT_RETRY_HOURS);
-                default -> LocalDateTime.now().plusHours(QuizConstants.ROADMAP_RETRY_HOURS);
+                case "CONCEPT" -> LocalDateTime.now(IST).plusMinutes(QuizConstants.CONCEPT_RETRY_MINUTES);
+                case "SUBJECT" -> LocalDateTime.now(IST).plusHours(QuizConstants.SUBJECT_RETRY_HOURS);
+                default -> LocalDateTime.now(IST).plusHours(QuizConstants.ROADMAP_RETRY_HOURS);
             };
         }
 
@@ -152,7 +163,7 @@ public class QuizService {
         attempt.setScore(score);
         attempt.setTotal(total);
         attempt.setPassed(passed);
-        attempt.setTakenAt(LocalDateTime.now());
+        attempt.setTakenAt(LocalDateTime.now(IST));
         attempt.setNextRetryAt(nextRetryAt);
         // Complete concept BEFORE saving attempt so that if completeConcept fails,
         // the attempt is not recorded (user can retry). This prevents the inconsistency
@@ -173,10 +184,12 @@ public class QuizService {
                 if (improved) {
                     b.setScore(score);
                     b.setTotal(total);
-                    b.setEarnedAt(LocalDateTime.now());
+                    b.setEarnedAt(LocalDateTime.now(IST));
                     badgeRepo.save(b);
                     xpEarned = progressService.awardXp(userId, score * 10);
                 }
+                // Mint / update the Subject Mastery certificate.
+                certificateService.issueSubjectCertificate(userId, refId, score, total);
             } else if ("ROADMAP".equals(type)) {
                 badge = score >= QuizConstants.ROADMAP_JOB_READY ? "JOB_READY" : "INTERVIEW_READY";
                 var existing = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, refId);
@@ -186,10 +199,12 @@ public class QuizService {
                     rb.setBadge(badge);
                     rb.setScore(score);
                     rb.setTotal(total);
-                    rb.setEarnedAt(LocalDateTime.now());
+                    rb.setEarnedAt(LocalDateTime.now(IST));
                     roadmapBadgeRepo.save(rb);
                     xpEarned = progressService.awardXp(userId, score * 10);
                 }
+                // Mint / update the Career Path Completion certificate.
+                certificateService.issueRoadmapCertificate(userId, refId, badge, score, total);
             }
         }
 
@@ -250,7 +265,7 @@ public class QuizService {
         boolean canRetry = true;
         LocalDateTime nextRetryAt = null;
         if (latest.isPresent() && !latest.get().isPassed() && latest.get().getNextRetryAt() != null) {
-            if (LocalDateTime.now().isBefore(latest.get().getNextRetryAt())) {
+            if (LocalDateTime.now(IST).isBefore(latest.get().getNextRetryAt())) {
                 canRetry = false;
                 nextRetryAt = latest.get().getNextRetryAt();
             }
@@ -276,13 +291,31 @@ public class QuizService {
         boolean allMastered = conceptCount > 0 && completed >= conceptCount;
 
         Optional<UserSubjectBadge> badge = badgeRepo.findByUserIdAndSubjectId(userId, subjectId);
-        return Map.of(
-                "allConceptsMastered", allMastered,
-                "hasBadge", badge.isPresent(),
-                "badgeScore", badge.map(UserSubjectBadge::getScore).orElse(0),
-                "badgeTotal", badge.map(UserSubjectBadge::getTotal).orElse(0),
-                "conceptCount", conceptCount
-        );
+
+        // Latest attempt + cooldown so the gate can show last score and "next attempt in …".
+        List<QuizAttempt> attempts = attemptRepo.findByUserIdAndTypeAndRefId(userId, "SUBJECT", subjectId);
+        QuizAttempt latest = attempts.stream().max(Comparator.comparing(QuizAttempt::getTakenAt)).orElse(null);
+        boolean canRetry = true;
+        LocalDateTime nextRetryAt = null;
+        if (latest != null && !latest.isPassed() && latest.getNextRetryAt() != null
+                && LocalDateTime.now(IST).isBefore(latest.getNextRetryAt())) {
+            canRetry = false;
+            nextRetryAt = latest.getNextRetryAt();
+        }
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("allConceptsMastered", allMastered);
+        m.put("hasBadge", badge.isPresent());
+        m.put("badgeScore", badge.map(UserSubjectBadge::getScore).orElse(0));
+        m.put("badgeTotal", badge.map(UserSubjectBadge::getTotal).orElse(0));
+        m.put("conceptCount", conceptCount);
+        m.put("attemptCount", attempts.size());
+        m.put("lastScore", latest != null ? latest.getScore() : 0);
+        m.put("lastTotal", latest != null ? latest.getTotal() : 0);
+        m.put("lastPassed", latest != null && latest.isPassed());
+        m.put("canRetry", canRetry);
+        m.put("nextRetryAt", nextRetryAt != null ? nextRetryAt.toString() : null);
+        return m;
     }
 
     // ─── BULK SUBJECT STATUS — replaces N×M DB calls with 2 queries ─────────────
@@ -333,6 +366,61 @@ public class QuizService {
         return result;
     }
 
+    // ─── ATTEMPT HISTORY ────────────────────────────────────────────────────────
+    /**
+     * Full quiz/test attempt history for a student, newest first, enriched with the
+     * concept/subject/career-path name so the arena can show "what I attempted, my
+     * scores and when". {@code limit <= 0} returns everything.
+     */
+    public List<Map<String, Object>> getQuizHistory(String userId, int limit) {
+        List<QuizAttempt> attempts = attemptRepo.findByUserIdOrderByTakenAtDesc(userId);
+        if (attempts.isEmpty()) return List.of();
+
+        Set<String> conceptIds = new HashSet<>();
+        Set<String> subjectIds = new HashSet<>();
+        Set<String> roadmapIds = new HashSet<>();
+        for (QuizAttempt a : attempts) {
+            switch (a.getType() == null ? "" : a.getType()) {
+                case "CONCEPT" -> conceptIds.add(a.getRefId());
+                case "SUBJECT" -> subjectIds.add(a.getRefId());
+                case "ROADMAP" -> roadmapIds.add(a.getRefId());
+                default -> { }
+            }
+        }
+        Map<String, String> conceptNames = new HashMap<>();
+        conceptRepo.findAllById(conceptIds).forEach(c -> conceptNames.put(c.getId(), c.getTitle()));
+        Map<String, String> subjectNames = new HashMap<>();
+        subjectRepo.findAllById(subjectIds).forEach(s -> subjectNames.put(s.getId(), s.getTitle()));
+        Map<String, String> roadmapNames = new HashMap<>();
+        roadmapRepo.findAllById(roadmapIds).forEach(r -> roadmapNames.put(r.getId(), r.getTitle()));
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (QuizAttempt a : attempts) {
+            String type = a.getType() == null ? "" : a.getType();
+            String name = switch (type) {
+                case "CONCEPT" -> conceptNames.getOrDefault(a.getRefId(), "Concept");
+                case "SUBJECT" -> subjectNames.getOrDefault(a.getRefId(), "Subject");
+                case "ROADMAP" -> roadmapNames.getOrDefault(a.getRefId(), "Career Path");
+                default -> "Quiz";
+            };
+            int pct = a.getTotal() > 0 ? (int) Math.round(a.getScore() * 100.0 / a.getTotal()) : 0;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", a.getId());
+            m.put("type", type);
+            m.put("refId", a.getRefId());
+            m.put("name", name);
+            m.put("score", a.getScore());
+            m.put("total", a.getTotal());
+            m.put("scorePercent", pct);
+            m.put("passed", a.isPassed());
+            m.put("xpEarned", a.getXpEarned());
+            m.put("takenAt", a.getTakenAt() != null ? a.getTakenAt().toString() : null);
+            out.add(m);
+            if (limit > 0 && out.size() >= limit) break;
+        }
+        return out;
+    }
+
     // ─── HELPERS ──────────────────────────────────────────────────────────────
 
     /** The full, legitimate set of questions a given quiz can draw from. */
@@ -381,7 +469,7 @@ public class QuizService {
         Optional<QuizAttempt> latest = attemptRepo
                 .findTopByUserIdAndTypeAndRefIdOrderByTakenAtDesc(userId, type, refId);
         if (latest.isPresent() && !latest.get().isPassed() && latest.get().getNextRetryAt() != null) {
-            if (LocalDateTime.now().isBefore(latest.get().getNextRetryAt())) {
+            if (LocalDateTime.now(IST).isBefore(latest.get().getNextRetryAt())) {
                 throw new RuntimeException("Please wait before retrying. Next attempt available at: "
                         + latest.get().getNextRetryAt());
             }

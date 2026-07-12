@@ -49,6 +49,12 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getAttemptResult(attemptId, user.getId()));
     }
 
+    @GetMapping("/history")
+    public ResponseEntity<?> history(@RequestParam(defaultValue = "0") int limit,
+                                     @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(quizService.getQuizHistory(user.getId(), limit));
+    }
+
     @GetMapping("/{type}/{refId}/status")
     public ResponseEntity<?> getStatus(@PathVariable String type,
                                         @PathVariable String refId,

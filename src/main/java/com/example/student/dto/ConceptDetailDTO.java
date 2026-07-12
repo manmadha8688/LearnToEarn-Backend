@@ -26,6 +26,7 @@ public class ConceptDetailDTO {
     private List<String> keyPoints;
     private String tip;
     private List<String> commonMistakes;
+    private List<Concept.TrickyProblem> trickyProblems;
 
     private String rank;
     private int orderIndex;
