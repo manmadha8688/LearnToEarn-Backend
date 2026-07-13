@@ -43,6 +43,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
 
+    // Unmapped route / missing static resource. Without this, the catch-all below
+    // turned every unknown /api/* path into a 500 — polluting error monitoring with
+    // false alarms. Return a proper 404 instead.
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<?> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException e) {
+        return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+    }
+
     // Genuine bugs / bad input types — never leak internals to the client.
     @ExceptionHandler({ NullPointerException.class, ClassCastException.class })
     public ResponseEntity<?> handleProgrammingError(RuntimeException e) {

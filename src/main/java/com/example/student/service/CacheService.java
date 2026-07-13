@@ -21,7 +21,9 @@ public class CacheService {
 
     private static final Logger log = LoggerFactory.getLogger(CacheService.class);
 
-    // TTL in seconds per cache name
+    // TTL in seconds per cache name. Every namespace here gets a Caffeine (L1) cache;
+    // a namespace NOT listed would silently skip L1 and be Redis-only, so keep this in
+    // sync with every cacheService.get(...) call site.
     static final Map<String, Long> TTLS = Map.of(
         "subjects",    86400L,   // 24 h
         "concepts",    86400L,   // 24 h
@@ -29,7 +31,8 @@ public class CacheService {
         "missions",    86400L,   // 24 h — reference data, rarely changes
         "problems",    86400L,   // 24 h — reference data, rarely changes
         "aptitude",    86400L,   // 24 h — reference data, rarely changes
-        "progress",    300L,     // 5 min
+        "progress",    300L,     // 5 min — per-user, evicted on quiz pass / completion
+        "certificates",300L,     // 5 min — per-user, evicted when a certificate is issued
         "publicStats", 300L      // 5 min — landing-page counts, cheap-to-spam public endpoint
     );
 

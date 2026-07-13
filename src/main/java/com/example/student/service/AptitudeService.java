@@ -142,6 +142,44 @@ public class AptitudeService {
     }
 
     /**
+     * Pre-warm every aptitude cache entry on startup: categories → per-category
+     * groups → per-group topic lists → each active topic's full lesson + its
+     * questions, across all three collections. Uses the same public read methods
+     * (and therefore the same cache keys) the API serves, so the first request
+     * after a restart/redeploy is served from cache instead of MongoDB.
+     *
+     * @return the number of topics warmed (across quantitative/DI, logical, verbal)
+     */
+    public int warmAll() {
+        getCategories();
+        for (String cat : CATEGORIES) getGroups(cat);
+
+        // Per-group topic lists (group:{slug})
+        for (AptitudeGroup g : groupRepo.findAll()) {
+            if (g.isActive()) getTopics(g.getSlug());
+        }
+
+        // Every active topic's full lesson (topic:{slug}) + its questions (questions:{slug})
+        int topics = 0;
+        for (AptitudeTopic t : topicRepo.findActiveLight()) {
+            getTopic(t.getTopic());
+            getQuestions(t.getTopic());
+            topics++;
+        }
+        for (LogicalTopic t : logicalRepo.findActiveLight()) {
+            getTopic(t.getTopic());
+            getQuestions(t.getTopic());
+            topics++;
+        }
+        for (VerbalTopic t : verbalRepo.findActiveLight()) {
+            getTopic(t.getTopic());
+            getQuestions(t.getTopic());
+            topics++;
+        }
+        return topics;
+    }
+
+    /**
      * group-slug → ordered active-topic display names, from the collection that
      * owns the category. Topic count is derived from the list size, so the group
      * card can also be searched by the topics it contains.

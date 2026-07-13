@@ -8,6 +8,7 @@ import com.example.student.repository.ProblemRepository;
 import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.RoadmapSubjectRepository;
 import com.example.student.repository.SubjectRepository;
+import com.example.student.service.AptitudeService;
 import com.example.student.service.CacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ public class CacheWarmup {
     private final RoadmapSubjectRepository roadmapSubjectRepository;
     private final MissionRepository missionRepository;
     private final ProblemRepository problemRepository;
+    private final AptitudeService aptitudeService;
 
     public CacheWarmup(CacheService cacheService,
                        SubjectRepository subjectRepository,
@@ -41,7 +43,8 @@ public class CacheWarmup {
                        RoadmapRepository roadmapRepository,
                        RoadmapSubjectRepository roadmapSubjectRepository,
                        MissionRepository missionRepository,
-                       ProblemRepository problemRepository) {
+                       ProblemRepository problemRepository,
+                       AptitudeService aptitudeService) {
         this.cacheService = cacheService;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -49,6 +52,7 @@ public class CacheWarmup {
         this.roadmapSubjectRepository = roadmapSubjectRepository;
         this.missionRepository = missionRepository;
         this.problemRepository = problemRepository;
+        this.aptitudeService = aptitudeService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -59,6 +63,8 @@ public class CacheWarmup {
             warmRoadmaps();
             warmMissions();
             warmProblems();
+            warmAptitude();
+            warmPublicStats();
             log.info("Cache warmup complete.");
         } catch (Exception e) {
             log.error("Cache warmup failed — app will continue without warm cache: {}", e.getMessage());
@@ -75,6 +81,7 @@ public class CacheWarmup {
         }
         log.info("Cache warmup: {} subjects", subjects.size());
 
+        int conceptTotal = 0;
         for (Subject s : subjects) {
             final Subject ref = s;
             cacheService.get("subjects", "id:" + s.getId(), () -> ref);
@@ -91,9 +98,11 @@ public class CacheWarmup {
                 }
                 long count = concepts.size();
                 cacheService.get("concepts", "count:" + s.getId(), () -> count);
+                conceptTotal += concepts.size();
             }
         }
         cacheService.get("concepts", "total", conceptRepository::count);
+        log.info("Cache warmup: {} concepts", conceptTotal);
     }
 
     // ─── Roadmaps ────────────────────────────────────────────────────────────
@@ -135,5 +144,21 @@ public class CacheWarmup {
         }
         log.info("Cache warmup: problems warmed for all {} tracks",
                 com.example.student.service.AdminService.PROBLEM_TRACKS.size());
+    }
+
+    // ─── Aptitude (categories → groups → topics → lessons + questions) ────────
+
+    private void warmAptitude() {
+        int topics = aptitudeService.warmAll();
+        log.info("Cache warmup: aptitude warmed ({} topics + questions)", topics);
+    }
+
+    // ─── Public landing-page counts ──────────────────────────────────────────
+
+    private void warmPublicStats() {
+        cacheService.getLong("publicStats", "subjects", subjectRepository::count);
+        cacheService.getLong("publicStats", "concepts", conceptRepository::count);
+        cacheService.getLong("publicStats", "roadmaps", roadmapRepository::count);
+        log.info("Cache warmup: public stats warmed");
     }
 }
