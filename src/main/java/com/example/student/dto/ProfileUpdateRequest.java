@@ -1,5 +1,6 @@
 package com.example.student.dto;
 
+import com.example.student.model.Education;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -25,4 +26,11 @@ public class ProfileUpdateRequest {
 
     @Size(max = 200)
     private String portfolioUrl;
+
+    @Size(max = 120)
+    private String location;
+
+    private Education education;
+
+    private Boolean publicProfile;
 }

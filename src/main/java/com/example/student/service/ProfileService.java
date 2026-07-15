@@ -2,11 +2,14 @@ package com.example.student.service;
 
 import com.example.student.dto.ProfileUpdateRequest;
 import com.example.student.exception.ResourceNotFoundException;
+import com.example.student.model.Certificate;
+import com.example.student.model.Education;
 import com.example.student.model.Roadmap;
 import com.example.student.model.Subject;
 import com.example.student.model.User;
 import com.example.student.model.UserRoadmapBadge;
 import com.example.student.model.UserSubjectBadge;
+import com.example.student.repository.CertificateRepository;
 import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.SubjectRepository;
 import com.example.student.repository.UserRepository;
@@ -32,6 +35,8 @@ public class ProfileService {
     private static final int BIO_MAX = 300;
     private static final int NAME_MAX = 60;
     private static final int URL_MAX = 200;
+    private static final int LOCATION_MAX = 120;
+    private static final int EDU_FIELD_MAX = 120;
     private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Pattern URL_RE = Pattern.compile("^https?://[^\\s]{3,}$", Pattern.CASE_INSENSITIVE);
 
@@ -41,19 +46,22 @@ public class ProfileService {
     private final UserRoadmapBadgeRepository roadmapBadgeRepository;
     private final SubjectRepository subjectRepository;
     private final RoadmapRepository roadmapRepository;
+    private final CertificateRepository certificateRepository;
 
     public ProfileService(UserRepository userRepository,
                           UsernameService usernameService,
                           UserSubjectBadgeRepository subjectBadgeRepository,
                           UserRoadmapBadgeRepository roadmapBadgeRepository,
                           SubjectRepository subjectRepository,
-                          RoadmapRepository roadmapRepository) {
+                          RoadmapRepository roadmapRepository,
+                          CertificateRepository certificateRepository) {
         this.userRepository = userRepository;
         this.usernameService = usernameService;
         this.subjectBadgeRepository = subjectBadgeRepository;
         this.roadmapBadgeRepository = roadmapBadgeRepository;
         this.subjectRepository = subjectRepository;
         this.roadmapRepository = roadmapRepository;
+        this.certificateRepository = certificateRepository;
     }
 
     // ── Public profile ────────────────────────────────────────────────
@@ -61,6 +69,11 @@ public class ProfileService {
         User user = userRepository.findByUsername(username)
                 .filter(u -> !"GUEST".equals(u.getRole()))
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
+
+        // Private profiles are invisible to everyone but the owner (legacy null = public).
+        if (Boolean.FALSE.equals(user.getPublicProfile())) {
+            throw new ResourceNotFoundException("Profile not found");
+        }
 
         List<UserSubjectBadge> subjectBadges = subjectBadgeRepository.findByUserId(user.getId());
         List<UserRoadmapBadge> roadmapBadges = roadmapBadgeRepository.findByUserId(user.getId());
@@ -96,8 +109,31 @@ public class ProfileService {
         res.put("githubUrl", user.getGithubUrl() != null ? user.getGithubUrl() : "");
         res.put("linkedinUrl", user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
         res.put("portfolioUrl", user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
+        res.put("location", user.getLocation() != null ? user.getLocation() : "");
+        res.put("education", user.getEducation());
+        res.put("email", user.getEmail() != null ? user.getEmail() : "");
         res.put("badgeCount", badges.size());
         res.put("badges", badges);
+
+        // Certificates — publicly verifiable, so safe to surface (title, kind, score,
+        // rank, issue date, and the verification code). No internal IDs.
+        List<Map<String, Object>> certificates = new java.util.ArrayList<>();
+        for (Certificate c : certificateRepository.findByUserIdOrderByIssuedAtDesc(user.getId())) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("code", c.getCode());
+            m.put("title", c.getCredentialTitle());
+            m.put("kind", c.getCredentialKind());
+            m.put("score", c.getScore());
+            m.put("total", c.getTotal());
+            m.put("scorePercent", c.getScorePercent());
+            m.put("icon", c.getIcon());
+            m.put("color", c.getColor());
+            m.put("rankAtIssue", c.getRankAtIssue());
+            m.put("issuedAt", c.getIssuedAt() != null ? c.getIssuedAt().toString() : null);
+            certificates.add(m);
+        }
+        res.put("certificateCount", certificates.size());
+        res.put("certificates", certificates);
         return res;
     }
 
@@ -160,8 +196,55 @@ public class ProfileService {
         if (req.getLinkedinUrl() != null)  user.setLinkedinUrl(cleanUrl(req.getLinkedinUrl(), "LinkedIn"));
         if (req.getPortfolioUrl() != null) user.setPortfolioUrl(cleanUrl(req.getPortfolioUrl(), "Portfolio"));
 
-        // role, xp, email, password, etc. are intentionally never read from the request.
+        if (req.getLocation() != null) {
+            String loc = req.getLocation().trim();
+            if (loc.length() > LOCATION_MAX) throw new IllegalArgumentException("Location is too long");
+            user.setLocation(loc.isEmpty() ? null : loc);
+        }
+
+        if (req.getEducation() != null) {
+            user.setEducation(sanitizeEducation(req.getEducation()));
+        }
+
+        if (req.getPublicProfile() != null) {
+            user.setPublicProfile(req.getPublicProfile());
+        }
+
+        // role, xp, login email, password, etc. are intentionally never read from the request.
         return userRepository.save(user);
+    }
+
+    /** True when the handle is a valid format AND free (the caller's current handle counts as free). */
+    public Map<String, Object> checkUsernameAvailability(User current, String raw) {
+        String uname = raw == null ? "" : raw.trim().toLowerCase();
+        Map<String, Object> res = new LinkedHashMap<>();
+        boolean valid = usernameService.isValidFormat(uname);
+        boolean available = valid
+                && (uname.equals(current.getPublicUsername()) || !userRepository.existsByUsername(uname));
+        res.put("valid", valid);
+        res.put("available", available);
+        return res;
+    }
+
+    /** Trim/cap each education field; returns null when every field is blank (clears it). */
+    private Education sanitizeEducation(Education e) {
+        String degree = trimCap(e.getDegree(), EDU_FIELD_MAX);
+        String field = trimCap(e.getFieldOfStudy(), EDU_FIELD_MAX);
+        String institution = trimCap(e.getInstitution(), EDU_FIELD_MAX);
+        String year = trimCap(e.getGraduationYear(), 10);
+        String cgpa = trimCap(e.getCgpa(), 20);
+        if (degree == null && field == null && institution == null && year == null && cgpa == null) return null;
+        return Education.builder()
+                .degree(degree).fieldOfStudy(field).institution(institution)
+                .graduationYear(year).cgpa(cgpa)
+                .build();
+    }
+
+    private String trimCap(String raw, int max) {
+        if (raw == null) return null;
+        String v = raw.trim();
+        if (v.isEmpty()) return null;
+        return v.length() > max ? v.substring(0, max) : v;
     }
 
     /** Trims a link; returns null when blank (clears it) or validates it is a full http(s) URL. */

@@ -39,6 +39,15 @@ public class User implements UserDetails {
     private String linkedinUrl;
     private String portfolioUrl;
 
+    // Personal profile details (settings page). All optional.
+    private String location;
+    private Education education;
+
+    // Profile visibility: true → anyone with the /u/{username} link can view it,
+    // false → private (public link 404s). Null (legacy accounts) is treated as public.
+    @Builder.Default
+    private Boolean publicProfile = true;
+
     // Password hash for local (email + password) auth. NULL for accounts created
     // via a social provider only (e.g. Google) — those users cannot use password login.
     @JsonIgnore

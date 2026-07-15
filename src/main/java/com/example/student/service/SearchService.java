@@ -1,14 +1,19 @@
 package com.example.student.service;
 
+import com.example.student.model.AptitudeTopic;
+import com.example.student.model.Concept;
+import com.example.student.model.LogicalTopic;
 import com.example.student.model.Mission;
 import com.example.student.model.ProblemQuestion;
 import com.example.student.model.Roadmap;
 import com.example.student.model.Subject;
+import com.example.student.model.VerbalTopic;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +41,9 @@ public class SearchService {
     public Map<String, Object> search(String rawQuery) {
         Map<String, Object> groups = new LinkedHashMap<>();
         groups.put("subjects", List.of());
+        groups.put("concepts", List.of());
         groups.put("roadmaps", List.of());
+        groups.put("aptitude", List.of());
         groups.put("missions", List.of());
         groups.put("problems", List.of());
 
@@ -76,12 +83,64 @@ public class SearchService {
                 .map(p -> item(p.getId(), p.getTitle(), p.getLevel(), "💻", "PROBLEM"))
                 .collect(Collectors.toList());
 
+        // Concepts — carry subjectId so the result can deep-link into the subject's gate.
+        List<Map<String, Object>> concepts = mongoTemplate.find(titleQuery, Concept.class).stream()
+                .limit(PER_CATEGORY)
+                .map(c -> {
+                    Map<String, Object> m = item(c.getId(), c.getTitle(), c.getSubjectTitle(),
+                            c.getSubjectIcon() != null ? c.getSubjectIcon() : "📘", "CONCEPT");
+                    m.put("subjectId", c.getSubjectId());
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        // Aptitude topics — live across 3 collections; only active topics, matched on displayName.
+        Query aptQuery = new Query(new Criteria().andOperator(
+                Criteria.where("displayName").regex(regex, "i"),
+                Criteria.where("isActive").is(true)
+        )).limit(FETCH_BUFFER);
+        List<Map<String, Object>> aptitude = new ArrayList<>();
+        for (AptitudeTopic t : mongoTemplate.find(aptQuery, AptitudeTopic.class))
+            aptitude.add(aptItem(t.getTopic(), t.getDisplayName(), t.getCategory(), t.getGroup(), t.getIcon()));
+        for (LogicalTopic t : mongoTemplate.find(aptQuery, LogicalTopic.class))
+            aptitude.add(aptItem(t.getTopic(), t.getDisplayName(), t.getCategory(), t.getGroup(), t.getIcon()));
+        for (VerbalTopic t : mongoTemplate.find(aptQuery, VerbalTopic.class))
+            aptitude.add(aptItem(t.getTopic(), t.getDisplayName(), t.getCategory(), t.getGroup(), t.getIcon()));
+        if (aptitude.size() > PER_CATEGORY) aptitude = new ArrayList<>(aptitude.subList(0, PER_CATEGORY));
+
         groups.put("subjects", subjects);
+        groups.put("concepts", concepts);
         groups.put("roadmaps", roadmaps);
+        groups.put("aptitude", aptitude);
         groups.put("missions", missions);
         groups.put("problems", problems);
 
         return Map.of("query", q, "results", groups);
+    }
+
+    /** Aptitude result — id is the topic slug; category+group+topic build the /aptitude route. */
+    private Map<String, Object> aptItem(String topicSlug, String displayName, String category, String group, String icon) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", topicSlug);
+        m.put("title", displayName);
+        m.put("subtitle", prettyCategory(category));
+        m.put("icon", icon != null ? icon : "🧠");
+        m.put("type", "APTITUDE");
+        m.put("category", category);
+        m.put("group", group);
+        m.put("topic", topicSlug);
+        return m;
+    }
+
+    private String prettyCategory(String category) {
+        if (category == null || category.isBlank()) return "Aptitude";
+        return switch (category) {
+            case "quantitative" -> "Quantitative";
+            case "logical" -> "Logical Reasoning";
+            case "verbal" -> "Verbal Ability";
+            case "data-interpretation" -> "Data Interpretation";
+            default -> category;
+        };
     }
 
     private Map<String, Object> item(String id, String title, String subtitle, String icon, String type) {

@@ -41,9 +41,19 @@ public class ProfileController {
             res.put("githubUrl", updated.getGithubUrl() != null ? updated.getGithubUrl() : "");
             res.put("linkedinUrl", updated.getLinkedinUrl() != null ? updated.getLinkedinUrl() : "");
             res.put("portfolioUrl", updated.getPortfolioUrl() != null ? updated.getPortfolioUrl() : "");
+            res.put("location", updated.getLocation() != null ? updated.getLocation() : "");
+            res.put("education", updated.getEducation());
+            res.put("publicProfile", updated.getPublicProfile() == null ? Boolean.TRUE : updated.getPublicProfile());
             return ResponseEntity.ok(res);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    // Authenticated — live username availability check for the profile editor.
+    @GetMapping("/profile/check-username")
+    public ResponseEntity<Map<String, Object>> checkUsername(@AuthenticationPrincipal User user,
+                                                             @RequestParam(name = "username", required = false) String username) {
+        return ResponseEntity.ok(profileService.checkUsernameAvailability(user, username));
     }
 }
