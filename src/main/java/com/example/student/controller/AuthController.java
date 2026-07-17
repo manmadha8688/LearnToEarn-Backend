@@ -183,6 +183,8 @@ public class AuthController {
         res.put("username",      user.getPublicUsername());
         res.put("bio",           user.getBio() != null ? user.getBio() : "");
         res.put("githubUrl",     user.getGithubUrl() != null ? user.getGithubUrl() : "");
+        res.put("githubLogin",   user.getGithubLogin() != null ? user.getGithubLogin() : "");
+        res.put("githubConnected", user.getGithubId() != null && !user.getGithubId().isBlank());
         res.put("linkedinUrl",   user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
         res.put("portfolioUrl",  user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("publicEmail",   user.getPublicEmail() != null ? user.getPublicEmail() : "");

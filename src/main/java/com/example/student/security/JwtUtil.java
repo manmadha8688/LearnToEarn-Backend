@@ -77,4 +77,27 @@ public class JwtUtil {
             return false;
         }
     }
+
+    /** Short-lived signed state for OAuth redirects (CSRF + user binding). */
+    public String createOAuthState(String purpose, String userId, long ttlMs) {
+        return Jwts.builder()
+                .subject(userId)
+                .claim("purpose", purpose)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + ttlMs))
+                .signWith(getKey())
+                .compact();
+    }
+
+    /** Validates OAuth state and returns the embedded user id. */
+    public String verifyOAuthState(String purpose, String state) {
+        Claims claims = extractClaims(state);
+        Object p = claims.get("purpose");
+        if (p == null || !purpose.equals(p.toString()))
+            throw new JwtException("Invalid OAuth state");
+        String userId = claims.getSubject();
+        if (userId == null || userId.isBlank())
+            throw new JwtException("Invalid OAuth state");
+        return userId;
+    }
 }

@@ -125,6 +125,8 @@ public class ProfileService {
         res.put("level", user.getLevel());
         res.put("joinedAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
         res.put("githubUrl", user.getGithubUrl() != null ? user.getGithubUrl() : "");
+        res.put("githubVerified", user.getGithubId() != null && !user.getGithubId().isBlank());
+        res.put("githubLogin", user.getGithubLogin() != null ? user.getGithubLogin() : "");
         res.put("linkedinUrl", user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
         res.put("portfolioUrl", user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("location", user.getLocation() != null ? user.getLocation() : "");
@@ -262,7 +264,18 @@ public class ProfileService {
         }
 
         // Career links — each optional; empty string clears it, otherwise must be a full URL.
-        if (req.getGithubUrl() != null)    user.setGithubUrl(cleanUrl(req.getGithubUrl(), "GitHub"));
+        // GitHub URL is locked when the account is OAuth-linked (disconnect to change).
+        if (req.getGithubUrl() != null) {
+            if (user.getGithubId() != null && !user.getGithubId().isBlank()) {
+                String incoming = req.getGithubUrl().trim();
+                String current = user.getGithubUrl() != null ? user.getGithubUrl().trim() : "";
+                if (!incoming.isEmpty() && !incoming.equals(current)) {
+                    throw new IllegalArgumentException("Disconnect GitHub to change your GitHub link.");
+                }
+            } else {
+                user.setGithubUrl(cleanUrl(req.getGithubUrl(), "GitHub"));
+            }
+        }
         if (req.getLinkedinUrl() != null)  user.setLinkedinUrl(cleanUrl(req.getLinkedinUrl(), "LinkedIn"));
         if (req.getPortfolioUrl() != null) user.setPortfolioUrl(cleanUrl(req.getPortfolioUrl(), "Portfolio"));
 

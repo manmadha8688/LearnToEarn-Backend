@@ -70,6 +70,15 @@ public class User implements UserDetails {
     @JsonIgnore
     private String googleId;
 
+    // Stable GitHub account id (numeric string from GitHub API). Sparse-unique index in
+    // DataIntegrityMigration. NULL until the user connects GitHub on My Profile.
+    // @JsonIgnore: never expose in any response.
+    @JsonIgnore
+    private String githubId;
+
+    // GitHub handle (login) — safe to expose as @username on My Profile / public profile.
+    private String githubLogin;
+
     // Secret device token for GUEST session persistence. A server-generated random UUID
     // (not the guessable Mongo _id) that the guest's browser stores and presents to reuse
     // its account across reloads. Sparse-unique index created in DataIntegrityMigration.

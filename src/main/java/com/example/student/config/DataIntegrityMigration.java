@@ -230,6 +230,10 @@ public class DataIntegrityMigration implements CommandLineRunner {
         ensureUniqueSparse(User.class, new Document("googleId", 1),
                 List.of("googleId"), "users{googleId}");
 
+        // One GitHub account maps to one user; sparse so non-GitHub users don't collide on null.
+        ensureUniqueSparse(User.class, new Document("githubId", 1),
+                List.of("githubId"), "users{githubId}");
+
         // One bookmark per (user, type, ref) — prevents duplicates.
         ensureUnique(Bookmark.class,
                 new Document("userId", 1).append("type", 1).append("refId", 1),
