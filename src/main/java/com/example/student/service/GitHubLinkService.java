@@ -6,6 +6,7 @@ import com.example.student.repository.UserRepository;
 import com.example.student.security.JwtUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,19 @@ public class GitHubLinkService {
     @Value("${github.client-secret:}")
     private String clientSecret;
 
-    @Value("${app.url:http://localhost:5173}")
+    /** SPA origin for post-OAuth redirect fallback (e.g. http://localhost:5173 or https://learnforearn.in). */
+    @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
+
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174}")
+    private String allowedOriginsStr;
 
     /** Optional fixed backend base (e.g. https://learnforearn.onrender.com). */
     @Value("${app.backend-url:}")
     private String backendBaseUrl;
+
+    @Value("${spring.profiles.active:local}")
+    private String activeProfiles;
 
     public GitHubLinkService(UserRepository userRepository, JwtUtil jwtUtil, ObjectMapper objectMapper) {
         this.userRepository = userRepository;
@@ -59,24 +67,41 @@ public class GitHubLinkService {
         this.objectMapper = objectMapper;
     }
 
+    @PostConstruct
+    void logRedirectConfig() {
+        if (!isProdProfile()) return;
+        String fe = normalizeOrigin(frontendUrl);
+        if (fe == null || isLocalhost(fe)) {
+            log.error("PRODUCTION MISCONFIG: APP_URL must be your public SPA (e.g. https://learnforearn.in), not localhost or the Render URL. Current: {}",
+                    frontendUrl);
+        } else {
+            log.info("GitHub OAuth will redirect to SPA origin: {}", fe);
+        }
+    }
+
     public boolean isConfigured() {
         return clientId != null && !clientId.isBlank()
                 && clientSecret != null && !clientSecret.isBlank();
     }
 
-    public String buildAuthorizeUrl(User user, HttpServletRequest request) {
+    public String buildAuthorizeUrl(User user, HttpServletRequest request, String explicitReturnTo) {
         if (user == null || "GUEST".equals(user.getRole()))
             throw new IllegalArgumentException("Guest accounts cannot connect GitHub.");
         if (!isConfigured())
             throw new IllegalStateException("GitHub connect is not available right now.");
 
+        String returnOrigin = resolveReturnOrigin(request, explicitReturnTo);
         String callback = callbackUrl(request);
-        String state = jwtUtil.createOAuthState(OAUTH_PURPOSE, user.getId(), STATE_TTL_MS);
+        String state = jwtUtil.createOAuthState(OAUTH_PURPOSE, user.getId(), STATE_TTL_MS, returnOrigin);
         return "https://github.com/login/oauth/authorize"
                 + "?client_id=" + encode(clientId)
                 + "&redirect_uri=" + encode(callback)
                 + "&scope=read:user"
                 + "&state=" + encode(state);
+    }
+
+    public String buildAuthorizeUrl(User user, HttpServletRequest request) {
+        return buildAuthorizeUrl(user, request, null);
     }
 
     public User handleCallback(String code, String state, HttpServletRequest request) {
@@ -125,14 +150,153 @@ public class GitHubLinkService {
         return userRepository.save(user);
     }
 
+    /** Redirect target after OAuth — prefers origin stored in {@code state} at connect time. */
+    public String frontendRedirect(String query, String state) {
+        String base = resolveReturnOriginFromState(state);
+        String q = (query == null || query.isBlank()) ? "" : "?" + query;
+        return base + "/myprofile" + q + "#social-links";
+    }
+
     public String frontendRedirect(String query) {
-        String base = frontendUrl == null || frontendUrl.isBlank() ? "http://localhost:5173" : frontendUrl.trim();
-        if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-        return base + "/myprofile" + (query == null || query.isBlank() ? "" : "?" + query);
+        return frontendRedirect(query, null);
+    }
+
+    public String frontendErrorRedirect(String reason, String state) {
+        return frontendRedirect("github=error&reason=" + encode(reason), state);
     }
 
     public String frontendErrorRedirect(String reason) {
-        return frontendRedirect("github=error&reason=" + encode(reason));
+        return frontendErrorRedirect(reason, null);
+    }
+
+    private String resolveReturnOriginFromState(String state) {
+        String fromState = state != null ? jwtUtil.extractOAuthReturnTo(state) : null;
+        String normalized = normalizeOrigin(fromState);
+        if (normalized != null && isAllowedOrigin(normalized)) {
+            return normalized;
+        }
+        if (fromState != null && !fromState.isBlank()) {
+            log.warn("GitHub OAuth state returnTo rejected (not in CORS allow-list): {}", fromState);
+        }
+        return defaultFrontendBase();
+    }
+
+    /**
+     * Resolve SPA origin for post-OAuth redirect. Priority:
+     * 1) explicit {@code returnTo} from the frontend (window.location.origin)
+     * 2) Origin / Referer headers
+     * 3) {@code APP_URL} / app.frontend-url (never localhost in prod)
+     */
+    private String resolveReturnOrigin(HttpServletRequest request, String explicitReturnTo) {
+        String fromClient = normalizeOrigin(explicitReturnTo);
+        if (fromClient != null && isAllowedOrigin(fromClient)) {
+            return fromClient;
+        }
+        if (explicitReturnTo != null && !explicitReturnTo.isBlank()) {
+            log.warn("GitHub connect returnTo rejected (not in CORS allow-list): {}", explicitReturnTo);
+        }
+
+        String origin = normalizeOrigin(headerFirst(request, "Origin"));
+        if (origin == null || origin.isBlank()) {
+            String referer = request.getHeader("Referer");
+            if (referer != null && !referer.isBlank()) {
+                try {
+                    URI u = URI.create(referer);
+                    if (u.getScheme() != null && u.getHost() != null) {
+                        int port = u.getPort();
+                        boolean defaultPort = ("http".equalsIgnoreCase(u.getScheme()) && port == 80)
+                                || ("https".equalsIgnoreCase(u.getScheme()) && port == 443)
+                                || port == -1;
+                        origin = normalizeOrigin(u.getScheme() + "://" + u.getHost()
+                                + (defaultPort ? "" : ":" + port));
+                    }
+                } catch (Exception ignored) {
+                    // fall through
+                }
+            }
+        }
+        if (origin != null && isAllowedOrigin(origin)) {
+            return origin;
+        }
+        return defaultFrontendBase();
+    }
+
+    private String defaultFrontendBase() {
+        String base = normalizeOrigin(frontendUrl);
+        if (base != null && isLocalhost(base)) {
+            if (isProdProfile()) {
+                log.error("APP_URL is localhost ({}) in production — set APP_URL=https://learnforearn.in on Render", base);
+                base = null;
+            }
+        }
+        if (base == null || base.isBlank()) {
+            if (isProdProfile()) {
+                throw new IllegalStateException(
+                        "Post-OAuth redirect is not configured. Set APP_URL to your public site (https://learnforearn.in) "
+                                + "and CORS_ALLOWED_ORIGINS to the same origin on Render.");
+            }
+            return "http://localhost:5173";
+        }
+        if (!isAllowedOrigin(base) && isProdProfile()) {
+            log.warn("APP_URL ({}) is not listed in CORS_ALLOWED_ORIGINS — add it so OAuth redirects stay in sync", base);
+        }
+        return base;
+    }
+
+    private boolean isAllowedOrigin(String origin) {
+        String normalized = normalizeOrigin(origin);
+        if (normalized == null) return false;
+        for (String allowed : allowedOriginsStr.split(",")) {
+            String a = normalizeOrigin(allowed.trim());
+            if (a != null && a.equalsIgnoreCase(normalized)) return true;
+        }
+        String fe = normalizeOrigin(frontendUrl);
+        if (fe != null && !isLocalhost(fe) && fe.equalsIgnoreCase(normalized)) return true;
+        return false;
+    }
+
+    /** {@code https://learnforearn.in} — rejects paths, trailing slashes, junk. */
+    private static String normalizeOrigin(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            String s = trimTrailingSlash(raw.trim());
+            if (!s.contains("://")) return null;
+            URI u = URI.create(s);
+            if (u.getScheme() == null || u.getHost() == null) return null;
+            int port = u.getPort();
+            boolean defaultPort = port == -1
+                    || ("http".equalsIgnoreCase(u.getScheme()) && port == 80)
+                    || ("https".equalsIgnoreCase(u.getScheme()) && port == 443);
+            return u.getScheme().toLowerCase() + "://" + u.getHost().toLowerCase()
+                    + (defaultPort ? "" : ":" + port);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean isLocalhost(String origin) {
+        try {
+            URI u = URI.create(origin);
+            String host = u.getHost();
+            if (host == null) return false;
+            host = host.toLowerCase();
+            return host.equals("localhost") || host.equals("127.0.0.1") || host.endsWith(".local");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isProdProfile() {
+        if (activeProfiles == null) return false;
+        for (String p : activeProfiles.split(",")) {
+            if ("prod".equalsIgnoreCase(p.trim())) return true;
+        }
+        return false;
+    }
+
+    private static String trimTrailingSlash(String url) {
+        if (url == null || url.isBlank()) return url;
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     private String exchangeCode(String code, String redirectUri) {

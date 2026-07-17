@@ -72,14 +72,15 @@ public class ProfileController {
      */
     @GetMapping("/profile/github/connect-url")
     public ResponseEntity<?> connectGitHubUrl(@AuthenticationPrincipal User user,
-                                              HttpServletRequest request) {
+                                              HttpServletRequest request,
+                                              @RequestParam(name = "returnTo", required = false) String returnTo) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
         try {
-            return ResponseEntity.ok(Map.of("url", gitHubLinkService.buildAuthorizeUrl(user, request)));
+            return ResponseEntity.ok(Map.of("url", gitHubLinkService.buildAuthorizeUrl(user, request, returnTo)));
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(503).body(Map.of("error", "GitHub connect is not available right now."));
+            return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -89,13 +90,14 @@ public class ProfileController {
     @GetMapping("/profile/github/connect")
     public void connectGitHub(@AuthenticationPrincipal User user,
                               HttpServletRequest request,
-                              HttpServletResponse response) throws IOException {
+                              HttpServletResponse response,
+                              @RequestParam(name = "returnTo", required = false) String returnTo) throws IOException {
         if (user == null) {
             response.sendError(401, "Unauthorized");
             return;
         }
         try {
-            response.sendRedirect(gitHubLinkService.buildAuthorizeUrl(user, request));
+            response.sendRedirect(gitHubLinkService.buildAuthorizeUrl(user, request, returnTo));
         } catch (IllegalStateException e) {
             response.sendRedirect(gitHubLinkService.frontendErrorRedirect("unavailable"));
         } catch (IllegalArgumentException e) {

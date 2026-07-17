@@ -34,17 +34,17 @@ public class GitHubAuthController {
         if (error != null && !error.isBlank()) {
             String reason = "denied";
             if ("access_denied".equals(error)) reason = "denied";
-            response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason));
+            response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason, state));
             return;
         }
         try {
             gitHubLinkService.handleCallback(code, state, request);
-            response.sendRedirect(gitHubLinkService.frontendRedirect("github=connected"));
+            response.sendRedirect(gitHubLinkService.frontendRedirect("github=connected", state));
         } catch (IllegalArgumentException e) {
             String reason = mapReason(e.getMessage());
-            response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason));
+            response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason, state));
         } catch (Exception e) {
-            response.sendRedirect(gitHubLinkService.frontendErrorRedirect("failed"));
+            response.sendRedirect(gitHubLinkService.frontendErrorRedirect("failed", state));
         }
     }
 

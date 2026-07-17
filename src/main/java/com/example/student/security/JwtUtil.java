@@ -80,13 +80,20 @@ public class JwtUtil {
 
     /** Short-lived signed state for OAuth redirects (CSRF + user binding). */
     public String createOAuthState(String purpose, String userId, long ttlMs) {
-        return Jwts.builder()
+        return createOAuthState(purpose, userId, ttlMs, null);
+    }
+
+    /** {@code returnTo} = validated SPA origin to redirect after OAuth (e.g. http://localhost:5173). */
+    public String createOAuthState(String purpose, String userId, long ttlMs, String returnTo) {
+        var builder = Jwts.builder()
                 .subject(userId)
                 .claim("purpose", purpose)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + ttlMs))
-                .signWith(getKey())
-                .compact();
+                .expiration(new Date(System.currentTimeMillis() + ttlMs));
+        if (returnTo != null && !returnTo.isBlank()) {
+            builder.claim("returnTo", returnTo);
+        }
+        return builder.signWith(getKey()).compact();
     }
 
     /** Validates OAuth state and returns the embedded user id. */
@@ -99,5 +106,15 @@ public class JwtUtil {
         if (userId == null || userId.isBlank())
             throw new JwtException("Invalid OAuth state");
         return userId;
+    }
+
+    /** SPA origin embedded at connect time; null when absent or state is invalid. */
+    public String extractOAuthReturnTo(String state) {
+        try {
+            Object r = extractClaims(state).get("returnTo");
+            return r != null ? r.toString() : null;
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 }
