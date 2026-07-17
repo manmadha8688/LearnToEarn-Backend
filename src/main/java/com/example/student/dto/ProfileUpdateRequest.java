@@ -30,7 +30,15 @@ public class ProfileUpdateRequest {
     @Size(max = 120)
     private String location;
 
+    // Optional public contact email (opt-in). Blank clears it. Format validated in the service.
+    @Size(max = 254)
+    private String publicEmail;
+
     private Education education;
 
     private Boolean publicProfile;
+
+    // Id of the resume to feature on the public profile. Blank/empty clears it (show none).
+    @Size(max = 40)
+    private String featuredResumeId;
 }

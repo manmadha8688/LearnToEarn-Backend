@@ -135,9 +135,6 @@ public class SubjectService {
         ConceptDTO dto = new ConceptDTO();
         dto.setId(c.getId());
         dto.setTitle(c.getTitle());
-        dto.setWhatItIs(c.getWhatItIs());
-        dto.setWhyItMatters(c.getWhyItMatters());
-        dto.setCodeExample(c.getCodeExample());
         dto.setIntroduction(c.getIntroduction());
         dto.setRank(c.getRank() != null ? c.getRank() : "E");
         dto.setOrderIndex(c.getOrderIndex());

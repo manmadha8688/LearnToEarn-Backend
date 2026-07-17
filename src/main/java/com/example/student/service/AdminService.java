@@ -375,9 +375,6 @@ public class AdminService {
         c.setSubjectTitle(subject.getTitle());
         c.setSubjectIcon(subject.getIcon());
         c.setTitle(req.getTitle());
-        c.setWhatItIs(req.getWhatItIs());
-        c.setWhyItMatters(req.getWhyItMatters());
-        c.setCodeExample(req.getCodeExample());
         c.setIntroduction(req.getIntroduction());
         c.setExplanationSimple(req.getExplanationSimple());
         c.setExplanationTechnical(req.getExplanationTechnical());
@@ -409,9 +406,6 @@ public class AdminService {
 
         if (req.getSubjectId() != null) c.setSubjectId(req.getSubjectId());
         if (req.getTitle() != null) c.setTitle(req.getTitle());
-        if (req.getWhatItIs() != null) c.setWhatItIs(req.getWhatItIs());
-        if (req.getWhyItMatters() != null) c.setWhyItMatters(req.getWhyItMatters());
-        if (req.getCodeExample() != null) c.setCodeExample(req.getCodeExample());
         if (req.getIntroduction() != null) c.setIntroduction(req.getIntroduction());
         if (req.getExplanationSimple() != null) c.setExplanationSimple(req.getExplanationSimple());
         if (req.getExplanationTechnical() != null) c.setExplanationTechnical(req.getExplanationTechnical());

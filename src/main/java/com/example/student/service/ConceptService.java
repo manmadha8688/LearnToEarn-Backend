@@ -71,9 +71,6 @@ public class ConceptService {
         ConceptDetailDTO dto = new ConceptDetailDTO();
         dto.setId(concept.getId());
         dto.setTitle(concept.getTitle());
-        dto.setWhatItIs(concept.getWhatItIs());
-        dto.setWhyItMatters(concept.getWhyItMatters());
-        dto.setCodeExample(concept.getCodeExample());
         dto.setIntroduction(concept.getIntroduction());
         dto.setExplanationSimple(concept.getExplanationSimple());
         dto.setExplanationTechnical(concept.getExplanationTechnical());
@@ -111,9 +108,6 @@ public class ConceptService {
         ConceptDTO dto = new ConceptDTO();
         dto.setId(c.getId());
         dto.setTitle(c.getTitle());
-        dto.setWhatItIs(c.getWhatItIs());
-        dto.setWhyItMatters(c.getWhyItMatters());
-        dto.setCodeExample(c.getCodeExample());
         dto.setIntroduction(c.getIntroduction());
         dto.setExplanationSimple(c.getExplanationSimple());
         dto.setExplanationTechnical(c.getExplanationTechnical());

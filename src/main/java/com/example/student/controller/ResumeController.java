@@ -6,10 +6,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/resume")
+@RequestMapping("/api")
 public class ResumeController {
 
     private final ResumeService resumeService;
@@ -18,16 +19,54 @@ public class ResumeController {
         this.resumeService = resumeService;
     }
 
-    // Auth required — the current user's saved resume (empty object if none)
-    @GetMapping
-    public ResponseEntity<Map<String, Object>> get(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(resumeService.get(user.getId()));
+    // ── Owner endpoints (auth required) ──
+
+    @GetMapping("/resumes")
+    public ResponseEntity<List<Map<String, Object>>> list(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(resumeService.list(user.getId()));
     }
 
-    // Auth required — save/update the current user's resume
-    @PutMapping
-    public ResponseEntity<Map<String, Object>> save(@RequestBody Map<String, Object> data,
-                                                     @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(resumeService.save(user.getId(), data));
+    @PostMapping("/resumes")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> create(@AuthenticationPrincipal User user,
+                                                       @RequestBody Map<String, Object> body) {
+        String title = asString(body.get("title"));
+        Map<String, Object> data = (Map<String, Object>) body.get("data");
+        return ResponseEntity.ok(resumeService.create(user.getId(), title, data));
+    }
+
+    @PutMapping("/resumes/{id}")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> update(@AuthenticationPrincipal User user,
+                                                       @PathVariable String id,
+                                                       @RequestBody Map<String, Object> body) {
+        String title = asString(body.get("title"));
+        Map<String, Object> data = (Map<String, Object>) body.get("data");
+        return ResponseEntity.ok(resumeService.update(user.getId(), id, title, data));
+    }
+
+    @DeleteMapping("/resumes/{id}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal User user, @PathVariable String id) {
+        resumeService.delete(user.getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/resumes/{id}/share")
+    public ResponseEntity<Map<String, Object>> setShared(@AuthenticationPrincipal User user,
+                                                         @PathVariable String id,
+                                                         @RequestBody Map<String, Object> body) {
+        boolean makePublic = Boolean.TRUE.equals(body.get("public"));
+        return ResponseEntity.ok(resumeService.setShared(user.getId(), id, makePublic));
+    }
+
+    // ── Public read (no auth) — anyone with the link ──
+
+    @GetMapping("/public/resume/{slug}")
+    public ResponseEntity<Map<String, Object>> getPublic(@PathVariable String slug) {
+        return ResponseEntity.ok(resumeService.getPublic(slug.trim()));
+    }
+
+    private String asString(Object o) {
+        return o == null ? null : String.valueOf(o);
     }
 }

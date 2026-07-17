@@ -4,12 +4,18 @@ import com.example.student.dto.ProfileUpdateRequest;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Certificate;
 import com.example.student.model.Education;
+import com.example.student.model.Mission;
+import com.example.student.model.MissionSubmission;
+import com.example.student.model.Resume;
 import com.example.student.model.Roadmap;
 import com.example.student.model.Subject;
 import com.example.student.model.User;
 import com.example.student.model.UserRoadmapBadge;
 import com.example.student.model.UserSubjectBadge;
 import com.example.student.repository.CertificateRepository;
+import com.example.student.repository.MissionRepository;
+import com.example.student.repository.MissionSubmissionRepository;
+import com.example.student.repository.ResumeRepository;
 import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.SubjectRepository;
 import com.example.student.repository.UserRepository;
@@ -27,7 +33,8 @@ import java.util.stream.Collectors;
 /**
  * Read-only public profile assembly + authenticated self-update.
  * Public payload exposes ONLY safe fields (name, handle, avatar color, bio, rank, badges,
- * joined date) — never email, password, internal IDs beyond the badge reference, or tokens.
+ * joined date, and an OPT-IN public contact email) — never the private login email,
+ * password, internal IDs beyond the badge reference, or tokens.
  */
 @Service
 public class ProfileService {
@@ -37,8 +44,10 @@ public class ProfileService {
     private static final int URL_MAX = 200;
     private static final int LOCATION_MAX = 120;
     private static final int EDU_FIELD_MAX = 120;
+    private static final int EMAIL_MAX = 254;
     private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Pattern URL_RE = Pattern.compile("^https?://[^\\s]{3,}$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EMAIL_RE = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
 
     private final UserRepository userRepository;
     private final UsernameService usernameService;
@@ -47,6 +56,9 @@ public class ProfileService {
     private final SubjectRepository subjectRepository;
     private final RoadmapRepository roadmapRepository;
     private final CertificateRepository certificateRepository;
+    private final MissionSubmissionRepository missionSubmissionRepository;
+    private final MissionRepository missionRepository;
+    private final ResumeRepository resumeRepository;
 
     public ProfileService(UserRepository userRepository,
                           UsernameService usernameService,
@@ -54,7 +66,10 @@ public class ProfileService {
                           UserRoadmapBadgeRepository roadmapBadgeRepository,
                           SubjectRepository subjectRepository,
                           RoadmapRepository roadmapRepository,
-                          CertificateRepository certificateRepository) {
+                          CertificateRepository certificateRepository,
+                          MissionSubmissionRepository missionSubmissionRepository,
+                          MissionRepository missionRepository,
+                          ResumeRepository resumeRepository) {
         this.userRepository = userRepository;
         this.usernameService = usernameService;
         this.subjectBadgeRepository = subjectBadgeRepository;
@@ -62,6 +77,9 @@ public class ProfileService {
         this.subjectRepository = subjectRepository;
         this.roadmapRepository = roadmapRepository;
         this.certificateRepository = certificateRepository;
+        this.missionSubmissionRepository = missionSubmissionRepository;
+        this.missionRepository = missionRepository;
+        this.resumeRepository = resumeRepository;
     }
 
     // ── Public profile ────────────────────────────────────────────────
@@ -111,7 +129,8 @@ public class ProfileService {
         res.put("portfolioUrl", user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("location", user.getLocation() != null ? user.getLocation() : "");
         res.put("education", user.getEducation());
-        res.put("email", user.getEmail() != null ? user.getEmail() : "");
+        // Opt-in public contact email ONLY — never the private login email (user.getEmail()).
+        res.put("publicEmail", user.getPublicEmail() != null ? user.getPublicEmail() : "");
         res.put("badgeCount", badges.size());
         res.put("badges", badges);
 
@@ -134,7 +153,57 @@ public class ProfileService {
         }
         res.put("certificateCount", certificates.size());
         res.put("certificates", certificates);
+
+        // Mission work — the hunter's shipped builds (GitHub repo + live demo).
+        // Only submissions with at least one link are surfaced.
+        List<MissionSubmission> submissions = missionSubmissionRepository.findByUserId(user.getId()).stream()
+                .filter(s -> hasText(s.getRepoUrl()) || hasText(s.getDeployUrl()))
+                .collect(Collectors.toList());
+        List<Map<String, Object>> missionWork = new java.util.ArrayList<>();
+        if (!submissions.isEmpty()) {
+            Map<String, Mission> missionsById = new LinkedHashMap<>();
+            for (Mission m : missionRepository.findAllById(
+                    submissions.stream().map(MissionSubmission::getMissionId).collect(Collectors.toList()))) {
+                missionsById.put(m.getId(), m);
+            }
+            for (MissionSubmission s : submissions) {
+                Mission m = missionsById.get(s.getMissionId());
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("title", m != null && m.getTitle() != null ? m.getTitle() : "Mission build");
+                item.put("rank", m != null ? m.getRank() : null);
+                item.put("techStack", m != null && m.getTechStack() != null ? m.getTechStack() : List.of());
+                item.put("repoUrl", hasText(s.getRepoUrl()) ? s.getRepoUrl() : null);
+                item.put("deployUrl", hasText(s.getDeployUrl()) ? s.getDeployUrl() : null);
+                item.put("submittedAt", s.getUpdatedAt() != null ? s.getUpdatedAt().toString()
+                        : (s.getCreatedAt() != null ? s.getCreatedAt().toString() : null));
+                missionWork.add(item);
+            }
+        }
+        res.put("missionWorkCount", missionWork.size());
+        res.put("missionWork", missionWork);
+
+        // Featured resume — only when the student picked one AND its share link is still on.
+        // Turning share off (or deleting) clears featuredResumeId; this is a safety net.
+        Map<String, Object> featuredResume = null;
+        if (hasText(user.getFeaturedResumeId())) {
+            featuredResume = resumeRepository.findById(user.getFeaturedResumeId())
+                    .filter(r -> user.getId().equals(r.getUserId()))
+                    .filter(r -> r.isShared() && hasText(r.getShareSlug()))
+                    .map(r -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("title", hasText(r.getTitle()) ? r.getTitle() : "Resume");
+                        m.put("slug", r.getShareSlug());
+                        m.put("updatedAt", r.getUpdatedAt() != null ? r.getUpdatedAt().toString() : null);
+                        return m;
+                    })
+                    .orElse(null);
+        }
+        res.put("resume", featuredResume);
         return res;
+    }
+
+    private boolean hasText(String s) {
+        return s != null && !s.trim().isEmpty();
     }
 
     private Map<String, Object> badge(String type, String title, int score, int total, Object earnedAt) {
@@ -143,6 +212,7 @@ public class ProfileService {
         m.put("title", title);
         m.put("score", score);
         m.put("total", total);
+        m.put("scorePercent", total > 0 ? (int) Math.round(score * 100.0 / total) : 0);
         m.put("earnedAt", earnedAt != null ? earnedAt.toString() : null);
         return m;
     }
@@ -202,12 +272,43 @@ public class ProfileService {
             user.setLocation(loc.isEmpty() ? null : loc);
         }
 
+        // Public contact email — opt-in; empty string clears it, otherwise must be a valid address.
+        // This is NOT the login email (which is never read from the request).
+        if (req.getPublicEmail() != null) {
+            String pemail = req.getPublicEmail().trim();
+            if (pemail.isEmpty()) {
+                user.setPublicEmail(null);
+            } else {
+                if (pemail.length() > EMAIL_MAX) throw new IllegalArgumentException("Contact email is too long");
+                if (!EMAIL_RE.matcher(pemail).matches())
+                    throw new IllegalArgumentException("Contact email must be a valid email address");
+                user.setPublicEmail(pemail);
+            }
+        }
+
         if (req.getEducation() != null) {
             user.setEducation(sanitizeEducation(req.getEducation()));
         }
 
         if (req.getPublicProfile() != null) {
             user.setPublicProfile(req.getPublicProfile());
+        }
+
+        // Featured resume — must already have its share link ON in Resume Studio.
+        // Blank/empty clears the selection (show no resume on the public profile).
+        if (req.getFeaturedResumeId() != null) {
+            String rid = req.getFeaturedResumeId().trim();
+            if (rid.isEmpty()) {
+                user.setFeaturedResumeId(null);
+            } else {
+                Resume resume = resumeRepository.findByIdAndUserId(rid, user.getId())
+                        .orElseThrow(() -> new IllegalArgumentException("That resume was not found"));
+                if (!resume.isShared() || resume.getShareSlug() == null || resume.getShareSlug().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "Turn on the share link for this resume in Resume Studio before showing it on your profile");
+                }
+                user.setFeaturedResumeId(resume.getId());
+            }
         }
 
         // role, xp, login email, password, etc. are intentionally never read from the request.

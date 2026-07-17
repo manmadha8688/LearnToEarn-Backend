@@ -25,12 +25,6 @@ public class Concept {
 
     private String title;
 
-    // ── legacy fields (kept for backward compat) ──
-    private String content;
-    private String whatItIs;
-    private String whyItMatters;
-    private String codeExample;
-
     // ── rich content fields ──
     private String introduction;
     private String explanationSimple;

@@ -39,9 +39,19 @@ public class User implements UserDetails {
     private String linkedinUrl;
     private String portfolioUrl;
 
+    // Optional public contact email shown on the shareable profile (recruiter contact).
+    // Deliberately SEPARATE from the private login `email` above, which is never exposed
+    // publicly. Opt-in: empty/null means it is hidden from the public profile.
+    private String publicEmail;
+
     // Personal profile details (settings page). All optional.
     private String location;
     private Education education;
+
+    // The single resume the student chose to feature on their public profile.
+    // References a Resume._id the user owns; null = show no resume. When set, that
+    // resume is auto-shared so the public link always resolves.
+    private String featuredResumeId;
 
     // Profile visibility: true → anyone with the /u/{username} link can view it,
     // false → private (public link 404s). Null (legacy accounts) is treated as public.

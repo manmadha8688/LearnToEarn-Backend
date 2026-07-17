@@ -5,6 +5,7 @@ import com.example.student.model.Concept;
 import com.example.student.model.Feedback;
 import com.example.student.model.QuizAttempt;
 import com.example.student.model.Report;
+import com.example.student.model.Resume;
 import com.example.student.model.RoadmapSubject;
 import com.example.student.model.User;
 import com.example.student.model.UserConceptProgress;
@@ -25,6 +26,7 @@ import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.index.IndexField;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -72,7 +74,62 @@ public class DataIntegrityMigration implements CommandLineRunner {
         dedupeRoadmapSubjects();
         backfillUsernames();
         backfillProviders();
+        dropLegacyConceptFields();
+        migrateResumeSharedFlag();
         ensureIndexes();
+    }
+
+    /**
+     * Legacy Resume used a boolean field named {@code isPublic}. Lombok + Spring Data
+     * MongoDB often persisted that incorrectly (as {@code public} or never at all).
+     * Copy any truthy legacy flag onto the new {@code shared} field, then drop the old keys.
+     */
+    private void migrateResumeSharedFlag() {
+        try {
+            Query q = new Query(new Criteria().orOperator(
+                    Criteria.where("isPublic").is(true),
+                    Criteria.where("public").is(true),
+                    Criteria.where("isPublic").exists(true),
+                    Criteria.where("public").exists(true)));
+            long pending = mongoTemplate.count(q, Resume.class);
+            if (pending == 0) {
+                log.info("DataIntegrityMigration: resumes.shared clean — no legacy flags");
+                return;
+            }
+            // Promote truthy legacy flags to shared=true.
+            Query promote = new Query(new Criteria().orOperator(
+                    Criteria.where("isPublic").is(true),
+                    Criteria.where("public").is(true)));
+            long promoted = mongoTemplate.updateMulti(promote,
+                    new Update().set("shared", true), Resume.class).getModifiedCount();
+            // Drop the ambiguous legacy keys from every resume that still has them.
+            long cleaned = mongoTemplate.updateMulti(q,
+                    new Update().unset("isPublic").unset("public"), Resume.class).getModifiedCount();
+            log.info("DataIntegrityMigration: resumes.shared — promoted {}, cleaned {}", promoted, cleaned);
+        } catch (Exception e) {
+            log.warn("DataIntegrityMigration: resumes.shared migration — {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Remove the retired legacy concept fields (whatItIs, whyItMatters, codeExample) from
+     * every concept document. All concept content now lives in introduction/explanationSimple/
+     * examples. Idempotent: only touches documents that still carry any of the fields; a no-op
+     * once the collection is clean.
+     */
+    private void dropLegacyConceptFields() {
+        Query q = new Query(new Criteria().orOperator(
+                Criteria.where("whatItIs").exists(true),
+                Criteria.where("whyItMatters").exists(true),
+                Criteria.where("codeExample").exists(true)));
+        long pending = mongoTemplate.count(q, Concept.class);
+        if (pending == 0) {
+            log.info("DataIntegrityMigration: concepts clean — no legacy fields to drop");
+            return;
+        }
+        Update u = new Update().unset("whatItIs").unset("whyItMatters").unset("codeExample");
+        long modified = mongoTemplate.updateMulti(q, u, Concept.class).getModifiedCount();
+        log.info("DataIntegrityMigration: dropped legacy fields from {} concept(s)", modified);
     }
 
     /**
@@ -209,6 +266,10 @@ public class DataIntegrityMigration implements CommandLineRunner {
 
         // Concept lists are fetched per subject.
         ensureSimple(Concept.class, "subjectId", Sort.Direction.ASC);
+
+        // Public shareable resume slug; sparse so unshared resumes (no slug) don't collide on null.
+        ensureUniqueSparse(Resume.class, new Document("shareSlug", 1),
+                List.of("shareSlug"), "resumes{shareSlug}");
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {

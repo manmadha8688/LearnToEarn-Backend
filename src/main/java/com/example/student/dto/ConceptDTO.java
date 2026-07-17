@@ -11,11 +11,6 @@ public class ConceptDTO {
     private String id;
     private String title;
 
-    // legacy
-    private String whatItIs;
-    private String whyItMatters;
-    private String codeExample;
-
     // rich content
     private String introduction;
     private String explanationSimple;

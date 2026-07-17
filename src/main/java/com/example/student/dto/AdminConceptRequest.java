@@ -18,14 +18,6 @@ public class AdminConceptRequest {
     @Size(max = 300)
     private String title;
 
-    // legacy
-    @Size(max = 20000)
-    private String whatItIs;
-    @Size(max = 20000)
-    private String whyItMatters;
-    @Size(max = 20000)
-    private String codeExample;
-
     // rich content
     @Size(max = 20000)
     private String introduction;

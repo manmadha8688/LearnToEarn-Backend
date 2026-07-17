@@ -185,9 +185,11 @@ public class AuthController {
         res.put("githubUrl",     user.getGithubUrl() != null ? user.getGithubUrl() : "");
         res.put("linkedinUrl",   user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
         res.put("portfolioUrl",  user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
+        res.put("publicEmail",   user.getPublicEmail() != null ? user.getPublicEmail() : "");
         res.put("location",      user.getLocation() != null ? user.getLocation() : "");
         res.put("education",     user.getEducation());
         res.put("publicProfile", user.getPublicProfile() == null ? Boolean.TRUE : user.getPublicProfile());
+        res.put("featuredResumeId", user.getFeaturedResumeId() != null ? user.getFeaturedResumeId() : "");
         res.put("role",          user.getRole());
         res.put("providers",     user.getProviders() != null ? user.getProviders() : java.util.List.of());
         res.put("avatarColor",   user.getAvatarColor() != null ? user.getAvatarColor() : "#4F46E5");
