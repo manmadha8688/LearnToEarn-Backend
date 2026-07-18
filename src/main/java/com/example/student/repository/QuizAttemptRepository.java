@@ -1,6 +1,7 @@
 package com.example.student.repository;
 
 import com.example.student.model.QuizAttempt;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,8 @@ public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, Stri
     List<QuizAttempt> findByUserIdAndTypeAndPassedTrue(String userId, String type);
     // Full attempt history for a student, newest first (concept trials, gate tests, path exams)
     List<QuizAttempt> findByUserIdOrderByTakenAtDesc(String userId);
+    // Bounded variant — pushes the row cap into Mongo instead of trimming in memory.
+    List<QuizAttempt> findByUserIdOrderByTakenAtDesc(String userId, Pageable pageable);
     long countByUserIdAndTypeAndPassedTrue(String userId, String type);
     Optional<QuizAttempt> findTopByUserIdAndTypeAndRefIdOrderByTakenAtDesc(String userId, String type, String refId);
     boolean existsByUserIdAndTypeAndRefIdAndPassedTrue(String userId, String type, String refId);

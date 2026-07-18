@@ -212,6 +212,11 @@ public class QuizService {
         attempt.setDailyBonusEarned(dailyBonus);
         QuizAttempt saved = attemptRepo.save(attempt);
 
+        // A pass changes badges (subject/roadmap) and the concepts/subjects/roadmaps-passed
+        // counts, all surfaced by getHunterStats — bust its short-TTL cache immediately.
+        // (Concept passes also evict via ProgressService.completeConcept; double-evict is safe.)
+        if (passed) cacheService.evict("hunterStats", userId);
+
         return new QuizResultResponse(saved.getId(), score, total, passed, badge, nextRetryAt, results, xpEarned, dailyBonus);
     }
 
@@ -370,10 +375,13 @@ public class QuizService {
     /**
      * Full quiz/test attempt history for a student, newest first, enriched with the
      * concept/subject/career-path name so the arena can show "what I attempted, my
-     * scores and when". {@code limit <= 0} returns everything.
+     * scores and when". {@code limit <= 0} falls back to a bounded default of 50 so
+     * an unbounded history is never fetched or serialized.
      */
     public List<Map<String, Object>> getQuizHistory(String userId, int limit) {
-        List<QuizAttempt> attempts = attemptRepo.findByUserIdOrderByTakenAtDesc(userId);
+        int effectiveLimit = limit <= 0 ? 50 : limit;
+        List<QuizAttempt> attempts = attemptRepo.findByUserIdOrderByTakenAtDesc(
+                userId, org.springframework.data.domain.PageRequest.of(0, effectiveLimit));
         if (attempts.isEmpty()) return List.of();
 
         Set<String> conceptIds = new HashSet<>();
@@ -416,7 +424,7 @@ public class QuizService {
             m.put("xpEarned", a.getXpEarned());
             m.put("takenAt", a.getTakenAt() != null ? a.getTakenAt().toString() : null);
             out.add(m);
-            if (limit > 0 && out.size() >= limit) break;
+            if (out.size() >= effectiveLimit) break;
         }
         return out;
     }

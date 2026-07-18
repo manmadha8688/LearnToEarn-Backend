@@ -53,9 +53,10 @@ public class SubjectService {
                 () -> subjectRepository.findById(subjectId).orElse(null));
         if (subject == null) throw new ResourceNotFoundException("Subject not found");
 
-        // User-specific progress — not cached (indexed, sub-ms, changes on concept completion)
-        Set<String> completedByProgress = progressRepository.findByUserId(userId).stream()
-                .filter(p -> subjectId.equals(p.getSubjectId()))
+        // User-specific progress — not cached (indexed, sub-ms, changes on concept completion).
+        // Scoped query by (userId, subjectId) so Mongo returns only this subject's rows
+        // instead of the whole user history filtered in memory.
+        Set<String> completedByProgress = progressRepository.findByUserIdAndSubjectId(userId, subjectId).stream()
                 .map(p -> p.getConceptId())
                 .collect(Collectors.toSet());
 

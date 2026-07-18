@@ -63,6 +63,7 @@ public class ProfileService {
     private final ResumeRepository resumeRepository;
     private final OtpService otpService;
     private final LinkVerificationService linkVerificationService;
+    private final CacheService cacheService;
 
     public ProfileService(UserRepository userRepository,
                           UsernameService usernameService,
@@ -75,7 +76,8 @@ public class ProfileService {
                           MissionRepository missionRepository,
                           ResumeRepository resumeRepository,
                           OtpService otpService,
-                          LinkVerificationService linkVerificationService) {
+                          LinkVerificationService linkVerificationService,
+                          CacheService cacheService) {
         this.userRepository = userRepository;
         this.usernameService = usernameService;
         this.subjectBadgeRepository = subjectBadgeRepository;
@@ -88,10 +90,17 @@ public class ProfileService {
         this.resumeRepository = resumeRepository;
         this.otpService = otpService;
         this.linkVerificationService = linkVerificationService;
+        this.cacheService = cacheService;
     }
 
     // ── Public profile ────────────────────────────────────────────────
+    // Short-TTL cached: this is a public, unauthenticated, read-heavy endpoint. A
+    // self-edit evicts it immediately; badge/cert changes surface within the 90s TTL.
     public Map<String, Object> getPublicProfile(String username) {
+        return cacheService.get("publicProfile", username, () -> buildPublicProfile(username));
+    }
+
+    private Map<String, Object> buildPublicProfile(String username) {
         User user = userRepository.findByUsername(username)
                 .filter(u -> !"GUEST".equals(u.getRole()))
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
@@ -240,6 +249,7 @@ public class ProfileService {
 
     // ── Self update (settings) ────────────────────────────────────────
     public User updateOwnProfile(User user, ProfileUpdateRequest req) {
+        String previousUsername = user.getPublicUsername();
         if (req.getFullName() != null) {
             String name = req.getFullName().trim();
             if (name.isEmpty()) throw new IllegalArgumentException("Display name cannot be empty");
@@ -351,7 +361,14 @@ public class ProfileService {
         }
 
         // role, xp, login email, password, etc. are intentionally never read from the request.
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        // Bust the cached public profile (old + new handle) so self-edits show immediately.
+        if (previousUsername != null) cacheService.evict("publicProfile", previousUsername);
+        String currentUsername = saved.getPublicUsername();
+        if (currentUsername != null && !currentUsername.equals(previousUsername)) {
+            cacheService.evict("publicProfile", currentUsername);
+        }
+        return saved;
     }
 
     /** Send OTP to verify a new/changed contact email (authenticated profile editor). */

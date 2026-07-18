@@ -6,6 +6,7 @@ import com.example.student.dto.RegisterRequest;
 import com.example.student.model.User;
 import com.example.student.repository.UserRepository;
 import com.example.student.security.JwtUtil;
+import com.example.student.security.UserDetailsServiceImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,11 +23,13 @@ public class AuthService {
     private final EmailService emailService;
     private final UsernameService usernameService;
     private final LoginEventService loginEventService;
+    private final UserDetailsServiceImpl userDetailsService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil, AuthenticationManager authenticationManager,
                        OtpService otpService, EmailService emailService,
-                       UsernameService usernameService, LoginEventService loginEventService) {
+                       UsernameService usernameService, LoginEventService loginEventService,
+                       UserDetailsServiceImpl userDetailsService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
@@ -35,6 +38,7 @@ public class AuthService {
         this.emailService = emailService;
         this.usernameService = usernameService;
         this.loginEventService = loginEventService;
+        this.userDetailsService = userDetailsService;
     }
 
     public AuthResponse register(RegisterRequest req) {
@@ -150,6 +154,8 @@ public class AuthService {
             user.setTokenVersion(user.getTokenVersion() + 1);
             userRepository.save(user);
         });
+        // Drop the cached principal so the bumped tokenVersion takes effect immediately.
+        userDetailsService.evict(email);
     }
 
     public User getMe(String email) {
@@ -182,6 +188,8 @@ public class AuthService {
         // Invalidate every existing session after a password change.
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
+        // Drop the cached principal so the bumped tokenVersion takes effect immediately.
+        userDetailsService.evict(email);
         otpService.clearReset(email);
         emailService.sendPasswordChangedEmail(user.getEmail(), user.getFullName()); // best-effort, never throws
     }

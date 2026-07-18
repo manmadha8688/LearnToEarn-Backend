@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -27,9 +28,8 @@ public class WalkInService {
     private final UserRepository userRepository;
 
     public List<WalkIn> getActiveWalkIns(String city) {
-        // Auto-expire past walk-ins first
-        expirePastWalkIns();
-
+        // Expiry is handled by the scheduled sweep below, not on every read — this
+        // removes a full ACTIVE scan (+ occasional saveAll write) from the hot public path.
         List<WalkIn> result;
         if (city != null && !city.isBlank()) {
             result = walkInRepository.findByCityIgnoreCaseAndStatus(city, "ACTIVE");
@@ -101,7 +101,12 @@ public class WalkInService {
         return walkInRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(safePage, safeSize));
     }
 
-    private void expirePastWalkIns() {
+    // Runs at startup and hourly thereafter (walk-in dates are day-granular, so an
+    // hourly sweep keeps statuses effectively current). Behaviour is identical to the
+    // old on-read expiry — past ACTIVE walk-ins get marked EXPIRED — just off the
+    // request path.
+    @Scheduled(fixedDelay = 60 * 60 * 1000)
+    public void expirePastWalkIns() {
         LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"));
         List<WalkIn> active = walkInRepository.findByStatusOrderByWalkInDateAsc("ACTIVE");
         List<WalkIn> toExpire = new ArrayList<>();

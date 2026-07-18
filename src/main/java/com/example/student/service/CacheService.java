@@ -27,17 +27,20 @@ public class CacheService {
     // TTL in seconds per cache name. Every namespace here gets a Caffeine (L1) cache;
     // a namespace NOT listed would silently skip L1 and be Redis-only, so keep this in
     // sync with every cacheService.get(...) call site.
-    static final Map<String, Long> TTLS = Map.of(
-        "subjects",    86400L,   // 24 h
-        "concepts",    86400L,   // 24 h
-        "roadmaps",    86400L,   // 24 h
-        "missions",    86400L,   // 24 h — reference data, rarely changes
-        "problems",    86400L,   // 24 h — reference data, rarely changes
-        "aptitude",    86400L,   // 24 h — reference data, rarely changes
-        "progress",    300L,     // 5 min — per-user, evicted on quiz pass / completion
-        "certificates",300L,     // 5 min — per-user, evicted when a certificate is issued
-        "publicStats", 300L,     // 5 min — landing-page counts, cheap-to-spam public endpoint
-        "adminStats",  90L       // 90 s — admin dashboard aggregate counts (heavy to compute)
+    // Map.ofEntries (not Map.of) because there are more than 10 namespaces.
+    static final Map<String, Long> TTLS = Map.ofEntries(
+        Map.entry("subjects",     86400L),   // 24 h
+        Map.entry("concepts",     86400L),   // 24 h
+        Map.entry("roadmaps",     86400L),   // 24 h
+        Map.entry("missions",     86400L),   // 24 h — reference data, rarely changes
+        Map.entry("problems",     86400L),   // 24 h — reference data, rarely changes
+        Map.entry("aptitude",     86400L),   // 24 h — reference data, rarely changes
+        Map.entry("progress",     300L),     // 5 min — per-user, evicted on quiz pass / completion
+        Map.entry("certificates", 300L),     // 5 min — per-user, evicted when a certificate is issued
+        Map.entry("publicStats",  300L),     // 5 min — landing-page counts, cheap-to-spam public endpoint
+        Map.entry("adminStats",   90L),      // 90 s — admin dashboard aggregate counts (heavy to compute)
+        Map.entry("hunterStats",  60L),      // 60 s — per-user badges/counts, evicted on quiz pass / uncomplete
+        Map.entry("publicProfile",90L)       // 90 s — public hunter profile, evicted on self-update
     );
 
     private final Map<String, Cache<String, Object>> caffeineCaches;

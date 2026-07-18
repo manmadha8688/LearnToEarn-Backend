@@ -120,6 +120,7 @@ public class ProgressService {
         });
 
         cacheService.evict("progress", "summary:" + userId);
+        cacheService.evict("hunterStats", userId); // conceptsPassed count changed
 
         return Map.of("message", "Completed", "conceptId", conceptId,
                 "xpEarned", totalXp, "dailyBonusEarned", isFirstToday);
@@ -178,6 +179,7 @@ public class ProgressService {
         if (refund > 0) deductXp(userId, refund);
 
         cacheService.evict("progress", "summary:" + userId);
+        cacheService.evict("hunterStats", userId); // conceptsPassed count changed
         return Map.of("message", "Unmarked", "xpRemoved", refund);
     }
 
@@ -251,6 +253,12 @@ public class ProgressService {
     }
 
     public Map<String, Object> getHunterStats(String userId) {
+        // Short-TTL cache: hunter stats are read on every dashboard / profile open but only
+        // change on a quiz pass or concept uncomplete, both of which evict this key.
+        return cacheService.get("hunterStats", userId, () -> buildHunterStats(userId));
+    }
+
+    private Map<String, Object> buildHunterStats(String userId) {
         // ── Badges joined with subject info (subject from Caffeine cache) ─────
         List<Map<String, Object>> badges = badgeRepository.findByUserId(userId).stream()
                 .map(b -> {

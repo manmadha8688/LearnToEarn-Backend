@@ -29,6 +29,10 @@ public class ConceptController {
 
     @GetMapping("/api/concepts/search")
     public ResponseEntity<?> search(@RequestParam String q) {
+        if (q != null && q.length() > 100) {
+            return ResponseEntity.badRequest().body(
+                    java.util.Map.of("error", "Search query too long (max 100 characters)."));
+        }
         return ResponseEntity.ok(conceptService.search(q));
     }
 }

@@ -71,6 +71,10 @@ public class QuizController {
     @GetMapping("/subjects/bulk-status")
     public ResponseEntity<?> getBulkSubjectStatus(@RequestParam List<String> ids,
                                                    @AuthenticationPrincipal User user) {
+        if (ids.size() > 50) {
+            return ResponseEntity.badRequest().body(
+                    java.util.Map.of("error", "Too many subjects requested (max 50)."));
+        }
         return ResponseEntity.ok(quizService.getBulkSubjectStatus(ids, user.getId()));
     }
 

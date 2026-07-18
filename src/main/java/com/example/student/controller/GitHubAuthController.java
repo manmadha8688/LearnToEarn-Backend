@@ -3,6 +3,8 @@ package com.example.student.controller;
 import com.example.student.service.GitHubLinkService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +19,8 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/auth")
 public class GitHubAuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(GitHubAuthController.class);
 
     private final GitHubLinkService gitHubLinkService;
 
@@ -44,6 +48,7 @@ public class GitHubAuthController {
             String reason = mapReason(e.getMessage());
             response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason, state));
         } catch (Exception e) {
+            log.error("GitHub OAuth callback failed", e);
             response.sendRedirect(gitHubLinkService.frontendErrorRedirect("failed", state));
         }
     }
