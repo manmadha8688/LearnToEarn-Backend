@@ -2,6 +2,7 @@ package com.example.student.model;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class ProblemQuestion {
 
     // ── Placement within the gym ──────────────────────────────────────────────
     // START_CODING | LOGIC_BUILDING | SKILL_UP | CRACK_IT | BUILD_IT | PROVE_IT
+    @Indexed
     private String track;
     private int orderIndex;
 

@@ -39,6 +39,8 @@ public class AdminService {
     private final LoginEventRepository loginEventRepository;
     private final CertificateRepository certificateRepository;
     private final UserDailyQuestRepository dailyQuestRepository;
+    private final ResumeRepository resumeRepository;
+    private final MissionSubmissionRepository missionSubmissionRepository;
 
     public AdminService(UserRepository userRepository,
                         SubjectRepository subjectRepository,
@@ -59,7 +61,9 @@ public class AdminService {
                         BookmarkRepository bookmarkRepository,
                         LoginEventRepository loginEventRepository,
                         CertificateRepository certificateRepository,
-                        UserDailyQuestRepository dailyQuestRepository) {
+                        UserDailyQuestRepository dailyQuestRepository,
+                        ResumeRepository resumeRepository,
+                        MissionSubmissionRepository missionSubmissionRepository) {
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
         this.conceptRepository = conceptRepository;
@@ -80,11 +84,18 @@ public class AdminService {
         this.loginEventRepository = loginEventRepository;
         this.certificateRepository = certificateRepository;
         this.dailyQuestRepository = dailyQuestRepository;
+        this.resumeRepository = resumeRepository;
+        this.missionSubmissionRepository = missionSubmissionRepository;
     }
 
     // ─── STATS ───────────────────────────────────────────────────────────────
 
     public AdminStatsDTO getStats() {
+        // Cached ~90s: the dashboard fires ~15 counts + aggregates per load. Same DTO shape.
+        return cacheService.get("adminStats", "global", this::computeStats);
+    }
+
+    private AdminStatsDTO computeStats() {
         List<Map<String, Object>> recentUsers = userRepository.findTop5ByOrderByCreatedAtDesc()
                 .stream().map(u -> {
                     Map<String, Object> m = new java.util.LinkedHashMap<>();
@@ -114,6 +125,21 @@ public class AdminService {
         long newUsersToday = userRepository.countByCreatedAtAfter(startOfToday);
         long loginsToday   = loginEventRepository.countByCreatedAtAfter(startOfToday);
 
+        // One batched read per collection over the whole 7-day window, then bucket in memory —
+        // replaces 14 sequential count() round-trips. Bucketing uses the SAME LocalDateTime
+        // boundaries and the SAME exclusive (>start && <end) semantics as countByCreatedAtBetween,
+        // so the 7 points, their order and their values are identical.
+        java.time.LocalDateTime windowStart = today.minusDays(6).atStartOfDay();
+        java.time.LocalDateTime windowEnd   = today.plusDays(1).atStartOfDay();
+        List<java.time.LocalDateTime> loginTimes = loginEventRepository
+                .findByCreatedAtBetween(windowStart, windowEnd).stream()
+                .map(LoginEvent::getCreatedAt).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        List<java.time.LocalDateTime> signupTimes = userRepository
+                .findByCreatedAtBetween(windowStart, windowEnd).stream()
+                .map(User::getCreatedAt).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+
         List<Map<String, Object>> loginTrend = new java.util.ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             java.time.LocalDate day = today.minusDays(i);
@@ -121,8 +147,8 @@ public class AdminService {
             java.time.LocalDateTime dayEnd   = day.plusDays(1).atStartOfDay();
             Map<String, Object> point = new java.util.LinkedHashMap<>();
             point.put("date", day.toString());
-            point.put("logins", loginEventRepository.countByCreatedAtBetween(dayStart, dayEnd));
-            point.put("signups", userRepository.countByCreatedAtBetween(dayStart, dayEnd));
+            point.put("logins",  countInWindow(loginTimes, dayStart, dayEnd));
+            point.put("signups", countInWindow(signupTimes, dayStart, dayEnd));
             loginTrend.add(point);
         }
 
@@ -147,6 +173,19 @@ public class AdminService {
         dto.setTopSubjects(topSubjects);
         dto.setLoginTrend(loginTrend);
         return dto;
+    }
+
+    /**
+     * Count timestamps strictly inside (start, end) — mirrors Spring Data MongoDB's
+     * {@code Between} keyword, which generates $gt/$lt (both bounds exclusive). Keeping the
+     * same semantics guarantees this in-memory bucketing returns the exact same numbers the
+     * previous per-day countByCreatedAtBetween calls did.
+     */
+    private static long countInWindow(List<java.time.LocalDateTime> times,
+                                      java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        return times.stream()
+                .filter(t -> t.isAfter(start) && t.isBefore(end))
+                .count();
     }
 
     /**
@@ -267,6 +306,8 @@ public class AdminService {
         bookmarkRepository.deleteByUserId(userId);
         certificateRepository.deleteByUserId(userId);
         dailyQuestRepository.deleteByUserId(userId);
+        resumeRepository.deleteByUserId(userId);
+        missionSubmissionRepository.deleteByUserId(userId);
     }
 
     // ─── SUBJECTS ────────────────────────────────────────────────────────────
@@ -295,6 +336,7 @@ public class AdminService {
         s.setCareerUse(req.getCareerUse());
         Subject saved = subjectRepository.save(s);
         cacheService.evictAll("subjects");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
         return saved;
     }
 
@@ -345,9 +387,11 @@ public class AdminService {
         certificateRepository.deleteByTypeAndRefId("SUBJECT", id);
         roadmapSubjectRepository.deleteBySubjectId(id);
         conceptRepository.deleteBySubjectId(id);
+        bookmarkRepository.deleteByTypeAndRefId("SUBJECT", id);
         subjectRepository.deleteById(id);
         cacheService.evictAll("subjects");
         cacheService.evictAll("concepts");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
     }
 
     // ─── CONCEPTS ────────────────────────────────────────────────────────────
@@ -397,6 +441,7 @@ public class AdminService {
         cacheService.evict("concepts", "total");
         cacheService.evict("subjects", "id:" + subject.getId());
         cacheService.evict("subjects", "all");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
         return saved;
     }
 
@@ -473,6 +518,7 @@ public class AdminService {
         cacheService.evict("concepts", "total");
         cacheService.evict("subjects", "id:" + subjectId);
         cacheService.evict("subjects", "all");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
     }
 
     // ─── ROADMAPS ────────────────────────────────────────────────────────────
@@ -499,6 +545,7 @@ public class AdminService {
         r.setRoleTargets(req.getRoleTargets());
         Roadmap saved = roadmapRepository.save(r);
         cacheService.evictAll("roadmaps");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
         return saved;
     }
 
@@ -532,8 +579,10 @@ public class AdminService {
         certificateRepository.deleteByTypeAndRefId("ROADMAP", id);
         enrollmentRepository.deleteByRoadmapId(id);
         roadmapSubjectRepository.deleteByRoadmapId(id);
+        bookmarkRepository.deleteByTypeAndRefId("ROADMAP", id);
         roadmapRepository.deleteById(id);
         cacheService.evictAll("roadmaps");
+        cacheService.evictAll("publicStats"); // landing-page counts changed
     }
 
     public List<RoadmapSubject> getRoadmapSubjects(String roadmapId) {
@@ -694,12 +743,15 @@ public class AdminService {
         if (!problemRepository.existsById(id))
             throw new ResourceNotFoundException("Problem not found");
         problemRepository.deleteById(id);
+        bookmarkRepository.deleteByTypeAndRefId("PROBLEM", id);
         cacheService.evictAll("problems");
     }
 
     public void deleteMission(String id) {
         if (!missionRepository.existsById(id))
             throw new ResourceNotFoundException("Mission not found");
+        missionSubmissionRepository.deleteByMissionId(id);
+        bookmarkRepository.deleteByTypeAndRefId("MISSION", id);
         missionRepository.deleteById(id);
         cacheService.evictAll("missions");
     }

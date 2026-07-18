@@ -218,12 +218,18 @@ public class RoadmapService {
         Map<String, Roadmap> roadmapsById = new HashMap<>();
         roadmapRepository.findAllById(roadmapIds).forEach(r -> roadmapsById.put(r.getId(), r));
 
+        // Batch all roadmap→subject links in ONE query, grouped in memory by roadmap
+        // (replaces the previous per-enrollment findByRoadmapIdOrderByOrderIndex call).
+        Map<String, List<RoadmapSubject>> subjectsByRoadmap =
+                roadmapSubjectRepository.findByRoadmapIdInOrderByOrderIndex(roadmapIds).stream()
+                        .collect(Collectors.groupingBy(RoadmapSubject::getRoadmapId));
+
         List<RoadmapDetailDTO> result = new ArrayList<>();
         for (UserRoadmapEnrollment e : enrollments) {
             Roadmap roadmap = roadmapsById.get(e.getRoadmapId());
             if (roadmap == null) continue; // enrollment points to a deleted roadmap — skip
             List<RoadmapSubject> roadmapSubjects =
-                    roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(e.getRoadmapId());
+                    subjectsByRoadmap.getOrDefault(e.getRoadmapId(), List.of());
             result.add(buildRoadmapDetail(roadmap, roadmapSubjects,
                     completedBySubject, badgedSubjectIds, true, e.isPaused()));
         }

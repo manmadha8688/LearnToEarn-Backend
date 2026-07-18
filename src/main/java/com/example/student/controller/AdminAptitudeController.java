@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.model.AptitudeGroup;
 import com.example.student.model.AptitudeQuestion;
 import com.example.student.service.AptitudeAdminService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -66,12 +67,12 @@ public class AdminAptitudeController {
     }
 
     @PostMapping("/topics")
-    public ResponseEntity<?> createTopic(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> createTopic(@Valid @RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(service.createTopic(body));
     }
 
     @PutMapping("/topics/{id}")
-    public ResponseEntity<?> updateTopic(@PathVariable String id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> updateTopic(@PathVariable String id, @Valid @RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(service.updateTopic(id, body));
     }
 

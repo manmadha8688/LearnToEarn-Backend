@@ -1,5 +1,6 @@
 package com.example.student.model;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -27,8 +28,10 @@ public class Report {
     private String pageTitle;   // e.g. "Quiz — Variables and Input", "Mission — Bank Account Manager"
 
     // Report details
+    @NotBlank
     @Size(max = 40)
     private String type;        // NO_QUESTIONS | WRONG_CONTENT | BROKEN | MISSING_CONTENT | UI_ISSUE | WRONG_ANSWER | SUGGESTION | OTHER
+    @NotBlank
     @Size(max = 5000, message = "Description is too long")
     private String description;
     @Size(max = 2000)

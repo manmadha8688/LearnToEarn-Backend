@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.repository.UserRepository;
 import com.example.student.service.OtpService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,7 @@ public class EmailVerificationController {
 
 
     @PostMapping("/send-otp")
-    public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public ResponseEntity<?> sendOtp(@Valid @RequestBody Map<String, String> body, HttpServletRequest request) {
         String email = body.get("email");
         if (email == null || email.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
@@ -48,7 +49,7 @@ public class EmailVerificationController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody Map<String, String> body) {
         String email = body.get("email");
         String otp   = body.get("otp");
         if (email == null || otp == null)

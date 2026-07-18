@@ -70,7 +70,7 @@ public class ReportController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> update(@PathVariable String id,
-                                    @RequestBody Map<String, String> body) {
+                                    @Valid @RequestBody Map<String, String> body) {
         return reportRepository.findById(id).map(r -> {
             if (body.containsKey("status")) {
                 r.setStatus(body.get("status"));

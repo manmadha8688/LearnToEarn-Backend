@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface RoadmapSubjectRepository extends MongoRepository<RoadmapSubject, String> {
     List<RoadmapSubject> findByRoadmapIdOrderByOrderIndex(String roadmapId);
+    List<RoadmapSubject> findByRoadmapIdInOrderByOrderIndex(List<String> roadmapIds);
     Optional<RoadmapSubject> findByRoadmapIdAndSubjectId(String roadmapId, String subjectId);
     void deleteByRoadmapIdAndSubjectId(String roadmapId, String subjectId);
     void deleteBySubjectId(String subjectId);

@@ -16,6 +16,8 @@ public interface UserConceptProgressRepository extends MongoRepository<UserConce
 
     List<UserConceptProgress> findByUserId(String userId);
 
+    List<UserConceptProgress> findByUserIdAndSubjectId(String userId, String subjectId);
+
     long countByUserId(String userId);
 
     long countByUserIdAndSubjectId(String userId, String subjectId);

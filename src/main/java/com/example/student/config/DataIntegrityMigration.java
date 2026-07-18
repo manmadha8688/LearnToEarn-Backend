@@ -1,15 +1,23 @@
 package com.example.student.config;
 
+import com.example.student.model.AptitudeQuestion;
+import com.example.student.model.AptitudeTopic;
 import com.example.student.model.Bookmark;
 import com.example.student.model.Concept;
 import com.example.student.model.Feedback;
+import com.example.student.model.LoginEvent;
+import com.example.student.model.Mission;
 import com.example.student.model.MissionSubmission;
+import com.example.student.model.ProblemQuestion;
+import com.example.student.model.Question;
 import com.example.student.model.QuizAttempt;
 import com.example.student.model.Report;
 import com.example.student.model.Resume;
+import com.example.student.model.Roadmap;
 import com.example.student.model.RoadmapSubject;
 import com.example.student.model.User;
 import com.example.student.model.UserConceptProgress;
+import com.example.student.model.UserDailyQuest;
 import com.example.student.model.UserRoadmapEnrollment;
 import com.example.student.model.UserSubjectBadge;
 import com.example.student.model.WalkIn;
@@ -279,6 +287,59 @@ public class DataIntegrityMigration implements CommandLineRunner {
         // One GitHub repo can only be linked to one mission submission globally.
         ensureUniqueSparse(MissionSubmission.class, new Document("repoKey", 1),
                 List.of("repoKey"), "mission_submissions{repoKey}");
+
+        // Resumes fetched per owner (also drives cascade delete on account removal).
+        ensureSimple(Resume.class, "userId", Sort.Direction.ASC);
+
+        // Code Gym problems fetched per track.
+        ensureSimple(ProblemQuestion.class, "track", Sort.Direction.ASC);
+
+        // Missions filtered by published state.
+        ensureSimple(Mission.class, "published", Sort.Direction.ASC);
+
+        // Aptitude topics filtered by category and group.
+        ensureSimple(AptitudeTopic.class, "category", Sort.Direction.ASC);
+        ensureSimple(AptitudeTopic.class, "group", Sort.Direction.ASC);
+
+        // Quiz questions fetched per concept and per subject (quiz start/submit hot path).
+        ensureSimple(Question.class, "conceptId", Sort.Direction.ASC);
+        ensureSimple(Question.class, "subjectId", Sort.Direction.ASC);
+
+        // Aptitude questions fetched per topic.
+        ensureSimple(AptitudeQuestion.class, "topic", Sort.Direction.ASC);
+
+        // Admin dashboard trend/log queries over the append-only login event log.
+        ensureSimple(LoginEvent.class, "createdAt", Sort.Direction.DESC);
+
+        // Admin user listing and sign-up trend / role filters.
+        ensureSimple(User.class, "createdAt", Sort.Direction.DESC);
+        ensureSimple(User.class, "role", Sort.Direction.ASC);
+
+        // Roadmaps filtered by published state.
+        ensureSimple(Roadmap.class, "isPublished", Sort.Direction.ASC);
+
+        // One mission submission per (user, mission) — also the read path on mission open.
+        ensureUnique(MissionSubmission.class,
+                new Document("userId", 1).append("missionId", 1),
+                List.of("userId", "missionId"), "mission_submissions{userId,missionId}");
+
+        // One daily-quest doc per (user, day) — read/written on every study ping.
+        ensureUnique(UserDailyQuest.class,
+                new Document("userId", 1).append("questDate", 1),
+                List.of("userId", "questDate"), "user_daily_quests{userId,questDate}");
+
+        // Quiz history: newest attempts per user.
+        ensureCompound(QuizAttempt.class,
+                new Document("userId", 1).append("takenAt", -1),
+                List.of("userId", "takenAt"), "quiz_attempts{userId,takenAt}");
+
+        // Bookmark list: newest first per user.
+        ensureCompound(Bookmark.class,
+                new Document("userId", 1).append("createdAt", -1),
+                List.of("userId", "createdAt"), "bookmarks{userId,createdAt}");
+
+        // Admin reports list, newest first.
+        ensureSimple(Report.class, "createdAt", Sort.Direction.DESC);
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {

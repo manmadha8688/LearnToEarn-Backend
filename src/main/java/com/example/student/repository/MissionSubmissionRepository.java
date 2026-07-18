@@ -10,4 +10,6 @@ public interface MissionSubmissionRepository extends MongoRepository<MissionSubm
     Optional<MissionSubmission> findByUserIdAndMissionId(String userId, String missionId);
     List<MissionSubmission> findByUserId(String userId);
     Optional<MissionSubmission> findFirstByRepoKeyIgnoreCase(String repoKey);
+    void deleteByUserId(String userId);
+    void deleteByMissionId(String missionId);
 }

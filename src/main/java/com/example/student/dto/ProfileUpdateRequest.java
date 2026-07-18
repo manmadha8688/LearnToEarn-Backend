@@ -1,6 +1,7 @@
 package com.example.student.dto;
 
 import com.example.student.model.Education;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -34,6 +35,7 @@ public class ProfileUpdateRequest {
     private String mobile;
 
     // Optional public contact email when useLoginEmailForContact is false. Blank clears it.
+    @Email
     @Size(max = 254)
     private String publicEmail;
 

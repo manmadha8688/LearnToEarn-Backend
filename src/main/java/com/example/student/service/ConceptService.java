@@ -30,8 +30,7 @@ public class ConceptService {
     public List<ConceptDTO> getConceptsForSubject(String subjectId, String userId) {
         List<Concept> concepts = cacheService.get("concepts", "subject:" + subjectId,
                 () -> conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId));
-        java.util.Set<String> completedIds = progressRepository.findByUserId(userId).stream()
-                .filter(p -> subjectId.equals(p.getSubjectId()))
+        java.util.Set<String> completedIds = progressRepository.findByUserIdAndSubjectId(userId, subjectId).stream()
                 .map(com.example.student.model.UserConceptProgress::getConceptId)
                 .collect(java.util.stream.Collectors.toSet());
         return concepts.stream()

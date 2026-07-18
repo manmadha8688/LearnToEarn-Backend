@@ -40,7 +40,11 @@ public class GitHubLinkService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    // Bounded connect timeout so a slow GitHub endpoint can't tie up the OAuth callback
+    // thread indefinitely. Per-request timeout is set on each request below.
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(5))
+            .build();
 
     @Value("${github.client-id:}")
     private String clientId;
@@ -337,6 +341,7 @@ public class GitHubLinkService {
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create("https://github.com/login/oauth/access_token"))
+                    .timeout(java.time.Duration.ofSeconds(10))
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -363,6 +368,7 @@ public class GitHubLinkService {
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.github.com/user"))
+                    .timeout(java.time.Duration.ofSeconds(10))
                     .header("Accept", "application/vnd.github+json")
                     .header("Authorization", "Bearer " + accessToken)
                     .header("X-GitHub-Api-Version", "2022-11-28")

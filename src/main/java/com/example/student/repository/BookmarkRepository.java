@@ -11,4 +11,5 @@ public interface BookmarkRepository extends MongoRepository<Bookmark, String> {
     Optional<Bookmark> findByUserIdAndTypeAndRefId(String userId, String type, String refId);
     boolean existsByUserIdAndTypeAndRefId(String userId, String type, String refId);
     void deleteByUserId(String userId);
+    void deleteByTypeAndRefId(String type, String refId);
 }

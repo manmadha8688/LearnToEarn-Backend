@@ -2,6 +2,7 @@ package com.example.student.controller;
 
 import com.example.student.model.User;
 import com.example.student.service.ResumeService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class ResumeController {
     @PostMapping("/resumes")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> create(@AuthenticationPrincipal User user,
-                                                       @RequestBody Map<String, Object> body) {
+                                                       @Valid @RequestBody Map<String, Object> body) {
         String title = asString(body.get("title"));
         Map<String, Object> data = (Map<String, Object>) body.get("data");
         boolean skip = parseBoolean(body.get("skipLinkVerification"));
@@ -40,7 +41,7 @@ public class ResumeController {
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> update(@AuthenticationPrincipal User user,
                                                        @PathVariable String id,
-                                                       @RequestBody Map<String, Object> body) {
+                                                       @Valid @RequestBody Map<String, Object> body) {
         String title = asString(body.get("title"));
         Map<String, Object> data = (Map<String, Object>) body.get("data");
         boolean skip = parseBoolean(body.get("skipLinkVerification"));
@@ -56,7 +57,7 @@ public class ResumeController {
     @PostMapping("/resumes/{id}/share")
     public ResponseEntity<Map<String, Object>> setShared(@AuthenticationPrincipal User user,
                                                          @PathVariable String id,
-                                                         @RequestBody Map<String, Object> body) {
+                                                         @Valid @RequestBody Map<String, Object> body) {
         boolean makePublic = Boolean.TRUE.equals(body.get("public"));
         return ResponseEntity.ok(resumeService.setShared(user.getId(), id, makePublic));
     }

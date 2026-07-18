@@ -64,7 +64,7 @@ public class ProfileController {
 
     @PostMapping("/profile/contact-email/send-otp")
     public ResponseEntity<?> sendContactEmailOtp(@AuthenticationPrincipal User user,
-                                                 @RequestBody Map<String, String> body,
+                                                 @Valid @RequestBody Map<String, String> body,
                                                  HttpServletRequest request) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
@@ -87,7 +87,7 @@ public class ProfileController {
 
     @PostMapping("/profile/contact-email/verify-otp")
     public ResponseEntity<?> verifyContactEmailOtp(@AuthenticationPrincipal User user,
-                                                     @RequestBody Map<String, String> body) {
+                                                     @Valid @RequestBody Map<String, String> body) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }

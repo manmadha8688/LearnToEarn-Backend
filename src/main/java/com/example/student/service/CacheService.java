@@ -6,13 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -33,7 +36,8 @@ public class CacheService {
         "aptitude",    86400L,   // 24 h — reference data, rarely changes
         "progress",    300L,     // 5 min — per-user, evicted on quiz pass / completion
         "certificates",300L,     // 5 min — per-user, evicted when a certificate is issued
-        "publicStats", 300L      // 5 min — landing-page counts, cheap-to-spam public endpoint
+        "publicStats", 300L,     // 5 min — landing-page counts, cheap-to-spam public endpoint
+        "adminStats",  90L       // 90 s — admin dashboard aggregate counts (heavy to compute)
     );
 
     private final Map<String, Cache<String, Object>> caffeineCaches;
@@ -130,10 +134,22 @@ public class CacheService {
         if (caffeine != null) caffeine.invalidateAll();
         if (redisTemplate != null) {
             try {
-                Set<String> keys = redisTemplate.keys(cacheName + ":*");
-                if (keys != null && !keys.isEmpty()) redisTemplate.delete(keys);
+                // SCAN instead of KEYS: iterate the keyspace in small batches so Redis is
+                // never blocked. Same match pattern → the exact same keys get deleted.
+                ScanOptions options = ScanOptions.scanOptions().match(cacheName + ":*").count(200).build();
+                List<String> batch = new ArrayList<>();
+                try (Cursor<String> cursor = redisTemplate.scan(options)) {
+                    while (cursor.hasNext()) {
+                        batch.add(cursor.next());
+                        if (batch.size() >= 500) {
+                            redisTemplate.delete(batch);
+                            batch.clear();
+                        }
+                    }
+                }
+                if (!batch.isEmpty()) redisTemplate.delete(batch);
             } catch (Exception e) {
-                log.warn("Redis KEYS/DELETE failed [{}:*]: {}", cacheName, e.getMessage());
+                log.warn("Redis SCAN/DELETE failed [{}:*]: {}", cacheName, e.getMessage());
             }
         }
     }

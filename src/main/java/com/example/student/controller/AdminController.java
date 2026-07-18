@@ -121,7 +121,7 @@ public class AdminController {
 
     @PostMapping("/roadmaps/{id}/subjects")
     public ResponseEntity<?> addSubjectToRoadmap(@PathVariable String id,
-                                                  @RequestBody Map<String, Object> body) {
+                                                  @Valid @RequestBody Map<String, Object> body) {
         Object subjectIdObj = body.get("subjectId");
         if (subjectIdObj == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "subjectId is required"));
@@ -142,7 +142,7 @@ public class AdminController {
     @PutMapping("/roadmaps/{roadmapId}/subjects/{subjectId}/reorder")
     public ResponseEntity<?> reorderSubject(@PathVariable String roadmapId,
                                              @PathVariable String subjectId,
-                                             @RequestBody Map<String, Integer> body) {
+                                             @Valid @RequestBody Map<String, Integer> body) {
         Integer newOrderIndex = body.get("newOrderIndex");
         if (newOrderIndex == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "newOrderIndex is required"));

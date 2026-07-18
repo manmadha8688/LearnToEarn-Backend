@@ -25,10 +25,12 @@ public class AptitudeTopic {
     private String id;
 
     // quantitative | logical | verbal | data-interpretation
+    @Indexed
     private String category;
 
     // Slug of the group this topic belongs to (e.g. "number-basics").
     // A group nests topics under a category: category → group → topic.
+    @Indexed
     private String group;
 
     // URL-safe slug, unique per topic — used as the :topicId route param

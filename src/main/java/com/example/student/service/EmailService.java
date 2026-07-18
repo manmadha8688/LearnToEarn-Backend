@@ -23,16 +23,25 @@ public class EmailService {
     private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
     private static final String FROM_EMAIL = "noreply@learnforearn.in";
     private static final String FROM_NAME  = "LearnForEarn";
-    private static final String APP_URL    = "https://learnforearn.in";
-    private static final String DASHBOARD_URL = APP_URL + "/skill-arena/dashboard";
 
     // Contact mailboxes used for Reply-To routing + email footers
     private static final String HELP_EMAIL    = "help@learnforearn.in";
     private static final String HELLO_EMAIL   = "hello@learnforearn.in";
-    private static final String PRIVACY_URL   = APP_URL + "/privacy";
-    private static final String CONTACT_URL   = APP_URL + "/contact";
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    // Public SPA base URL — read from the APP_URL env var (mirrors the OAuth app.frontend-url pattern).
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String appUrl;
+
+    // Links derived from appUrl — initialised in @PostConstruct once appUrl is injected.
+    private String dashboardUrl;
+    private String privacyUrl;
+    private String contactUrl;
+
+    // Shared client with a bounded connect timeout so a slow/unreachable Brevo endpoint
+    // can't tie up the request thread indefinitely. Per-request timeout is set on each send.
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(5))
+            .build();
     private final ObjectMapper objectMapper;
 
     @Value("${brevo.api.key:}")
@@ -47,6 +56,9 @@ public class EmailService {
 
     @PostConstruct
     void logEmailConfig() {
+        dashboardUrl = appUrl + "/skill-arena/dashboard";
+        privacyUrl   = appUrl + "/privacy";
+        contactUrl   = appUrl + "/contact";
         if (apiKey == null || apiKey.isBlank()) {
             if (isLocalDev()) {
                 log.warn("BREVO_API_KEY is not set — OTP emails will be logged to console in local dev only.");
@@ -181,6 +193,7 @@ public class EmailService {
     private HttpResponse<String> send(String jsonBody) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BREVO_URL))
+                .timeout(java.time.Duration.ofSeconds(10))
                 .header("api-key", apiKey)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
@@ -229,10 +242,10 @@ public class EmailService {
 
         String legal =
             "<p style='color:#475569;font-size:0.72rem;margin:0 0 5px;'>&#169; 2026 LearnForEarn | " +
-            "<a href='" + APP_URL + "' style='color:#64748B;text-decoration:none;'>learnforearn.in</a></p>" +
+            "<a href='" + appUrl + "' style='color:#64748B;text-decoration:none;'>learnforearn.in</a></p>" +
             "<p style='color:#475569;font-size:0.72rem;margin:0;'>" +
-            "<a href='" + CONTACT_URL + "' style='color:#64748B;text-decoration:underline;'>Unsubscribe</a> | " +
-            "<a href='" + PRIVACY_URL + "' style='color:#64748B;text-decoration:underline;'>Privacy Policy</a></p>";
+            "<a href='" + contactUrl + "' style='color:#64748B;text-decoration:underline;'>Unsubscribe</a> | " +
+            "<a href='" + privacyUrl + "' style='color:#64748B;text-decoration:underline;'>Privacy Policy</a></p>";
 
         return "<div style='font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;background:#0D1117;border-radius:16px;overflow:hidden;'>" +
                "<div style='background:linear-gradient(135deg,#7C3AED,#9B6ED4);padding:28px 32px;text-align:center;'>" +
@@ -252,7 +265,7 @@ public class EmailService {
             sb.append("Do not reply to this email | Need help? ").append(HELP_EMAIL).append("\n");
         }
         sb.append("\u00A9 2026 LearnForEarn | learnforearn.in\n");
-        sb.append("Unsubscribe: ").append(CONTACT_URL).append(" | Privacy Policy: ").append(PRIVACY_URL);
+        sb.append("Unsubscribe: ").append(contactUrl).append(" | Privacy Policy: ").append(privacyUrl);
         return sb.toString();
     }
 
@@ -288,7 +301,7 @@ public class EmailService {
             "<li>Take a quiz to earn XP — the first concept each day carries a bonus.</li>" +
             "<li>Enroll in a roadmap if you prefer a guided path.</li></ul>" +
             "<div style='text-align:center;margin-bottom:20px;'>" +
-            "<a href='" + DASHBOARD_URL + "' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Enter the Skill Arena</a></div>" +
+            "<a href='" + dashboardUrl + "' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Enter the Skill Arena</a></div>" +
             "<p style='color:#64748B;font-size:0.8rem;margin:0;'>Rank E today. The climb starts now.</p>";
         String note = "Questions? Reply to this email or contact " +
             "<a href='mailto:" + HELLO_EMAIL + "' style='color:#94A3B8;'>" + HELLO_EMAIL + "</a>.";
@@ -302,7 +315,7 @@ public class EmailService {
                " - Pick a subject and complete your first concept.\n" +
                " - Take a quiz to earn XP — the first concept each day carries a bonus.\n" +
                " - Enroll in a roadmap if you prefer a guided path.\n\n" +
-               "Enter the Skill Arena: " + DASHBOARD_URL + "\n\n" +
+               "Enter the Skill Arena: " + dashboardUrl + "\n\n" +
                "Rank E today. The climb starts now." +
                textFooter("Questions? Reply to this email or contact " + HELLO_EMAIL + ".", true);
     }
@@ -313,7 +326,7 @@ public class EmailService {
             "<p style='color:#CBD5E1;margin:0 0 20px;font-size:0.95rem;line-height:1.6;'>" +
             "This is a confirmation that your LearnForEarn password was just changed. You can now sign in with your new password.</p>" +
             "<div style='text-align:center;margin-bottom:20px;'>" +
-            "<a href='" + APP_URL + "/login' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Sign in</a></div>" +
+            "<a href='" + appUrl + "/login' style='display:inline-block;background:linear-gradient(135deg,#7C3AED,#9B6ED4);color:#fff;text-decoration:none;font-weight:700;padding:13px 28px;border-radius:10px;font-size:0.95rem;'>Sign in</a></div>" +
             "<div style='background:#161B27;border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:16px;'>" +
             "<p style='color:#FCA5A5;font-size:0.85rem;margin:0;'>If you did not make this change, your account may be at risk. Please reset your password immediately.</p></div>";
         String note = "If this wasn't you, contact " +
@@ -326,7 +339,7 @@ public class EmailService {
         return "Hi " + name + ",\n\n" +
                "This is a confirmation that your LearnForEarn password was just changed. " +
                "You can now sign in with your new password.\n\n" +
-               "Sign in: " + APP_URL + "/login\n\n" +
+               "Sign in: " + appUrl + "/login\n\n" +
                "If you did not make this change, your account may be at risk. " +
                "Please reset your password immediately." +
                textFooter("If this wasn't you, contact " + HELP_EMAIL + " immediately.\nDo not reply to this email.", false);

@@ -32,6 +32,7 @@ public class Resume {
     private String id;
 
     /** Owner. Not unique — a user may have multiple resumes. */
+    @Indexed
     private String userId;
 
     /** Short label the user gives this resume, e.g. "Full Stack". */

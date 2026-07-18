@@ -5,6 +5,7 @@ import com.example.student.model.User;
 import com.example.student.security.RateLimiterService;
 import com.example.student.service.FeedbackService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,7 +32,7 @@ public class FeedbackController {
 
     @PostMapping
     public ResponseEntity<?> submit(
-            @RequestBody Map<String, Object> body,
+            @Valid @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal User user,
             HttpServletRequest request) {
         long retryAfter = rateLimiter.hit("feedback", getClientIp(request), 10, 3600);

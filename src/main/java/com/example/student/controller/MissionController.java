@@ -6,6 +6,7 @@ import com.example.student.model.User;
 import com.example.student.repository.MissionRepository;
 import com.example.student.service.CacheService;
 import com.example.student.service.MissionSubmissionService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -59,7 +60,7 @@ public class MissionController {
     // Auth required — save/update the hunter's repo + live demo links for this mission
     @PutMapping("/{id}/submission")
     public ResponseEntity<?> saveSubmission(@PathVariable String id,
-                                            @RequestBody Map<String, Object> body,
+                                            @Valid @RequestBody Map<String, Object> body,
                                             @AuthenticationPrincipal User user) {
         try {
             String target = asString(body.get("target"));

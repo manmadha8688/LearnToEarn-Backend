@@ -1,6 +1,7 @@
 package com.example.student.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.annotation.Id;
@@ -18,13 +19,16 @@ public class WalkIn {
     @Id
     private String id;
 
+    @NotBlank
     @Size(max = 200, message = "Company name is too long")
     private String companyName;
+    @NotBlank
     @Size(max = 200, message = "Role is too long")
     private String role;
     @Size(max = 50, message = "Too many skills")
     private List<@Size(max = 60) String> skills;
 
+    @NotBlank
     @Size(max = 40)
     private String walkInDate;   // ISO date string "2026-06-20"
     @Size(max = 80)
@@ -32,6 +36,7 @@ public class WalkIn {
     @Size(max = 500)
     private String location;     // venue / address
     @Indexed
+    @NotBlank
     @Size(max = 120)
     private String city;         // filtered by city on the jobs board
 

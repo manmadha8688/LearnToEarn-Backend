@@ -35,6 +35,8 @@ public interface UserRepository extends MongoRepository<User, String> {
     long countByCreatedAtAfter(LocalDateTime start);
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
     long countByProvidersContaining(String provider);
+    // Batch read of a whole window for in-memory day bucketing (admin sign-up trend).
+    List<User> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     // Guest management
     List<User> findByRole(String role);

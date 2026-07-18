@@ -18,4 +18,6 @@ public interface ResumeRepository extends MongoRepository<Resume, String> {
     Optional<Resume> findByShareSlug(String shareSlug);
 
     boolean existsByShareSlug(String shareSlug);
+
+    void deleteByUserId(String userId);
 }

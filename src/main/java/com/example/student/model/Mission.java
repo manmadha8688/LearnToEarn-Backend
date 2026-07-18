@@ -3,6 +3,7 @@ package com.example.student.model;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ public class Mission {
     // Only used when category = ROLE_BASED
     private List<String> targetRoles;
 
+    @Indexed
     @Builder.Default
     private boolean published = true;
 

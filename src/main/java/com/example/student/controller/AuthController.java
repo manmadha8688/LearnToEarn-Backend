@@ -110,7 +110,7 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> google(@RequestBody Map<String, String> body,
+    public ResponseEntity<?> google(@Valid @RequestBody Map<String, String> body,
                                     HttpServletRequest request, HttpServletResponse response) {
         String ip = getClientIp(request);
         // Reuse the IP-based limiter (keyed on a fixed marker) so a flood of bad tokens
@@ -135,7 +135,7 @@ public class AuthController {
     }
 
     @PostMapping("/guest")
-    public ResponseEntity<?> guest(@RequestBody(required = false) java.util.Map<String, String> body,
+    public ResponseEntity<?> guest(@Valid @RequestBody(required = false) java.util.Map<String, String> body,
                                    HttpServletRequest request, HttpServletResponse response) {
         String guestId = body != null ? body.get("guestId") : null;
         String ip = getClientIp(request);
