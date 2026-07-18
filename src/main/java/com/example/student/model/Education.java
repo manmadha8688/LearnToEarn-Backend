@@ -15,6 +15,7 @@ public class Education {
     private String degree;         // e.g. B.Tech, B.Sc, MCA
     private String fieldOfStudy;   // branch / specialization, e.g. Computer Science & Engineering
     private String institution;    // college / university name
-    private String graduationYear; // pass-out year, e.g. 2025
+    private String years;          // e.g. 2021 - 2025 (start – graduation)
+    private String graduationYear; // legacy pass-out year (deprecated)
     private String cgpa;           // CGPA or percentage, e.g. 8.2/10 or 82%
 }

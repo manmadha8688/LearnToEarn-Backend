@@ -2,6 +2,7 @@ package com.example.student.service;
 
 import com.example.student.dto.ProfileUpdateRequest;
 import com.example.student.exception.ResourceNotFoundException;
+import com.example.student.service.LinkVerificationService.LinkTarget;
 import com.example.student.model.Certificate;
 import com.example.student.model.Education;
 import com.example.student.model.Mission;
@@ -48,6 +49,7 @@ public class ProfileService {
     private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{6}$");
     private static final Pattern URL_RE = Pattern.compile("^https?://[^\\s]{3,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern EMAIL_RE = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
+    private static final Pattern MOBILE_RE = Pattern.compile("^[+]?\\d[\\d\\s().-]{6,17}$");
 
     private final UserRepository userRepository;
     private final UsernameService usernameService;
@@ -59,6 +61,8 @@ public class ProfileService {
     private final MissionSubmissionRepository missionSubmissionRepository;
     private final MissionRepository missionRepository;
     private final ResumeRepository resumeRepository;
+    private final OtpService otpService;
+    private final LinkVerificationService linkVerificationService;
 
     public ProfileService(UserRepository userRepository,
                           UsernameService usernameService,
@@ -69,7 +73,9 @@ public class ProfileService {
                           CertificateRepository certificateRepository,
                           MissionSubmissionRepository missionSubmissionRepository,
                           MissionRepository missionRepository,
-                          ResumeRepository resumeRepository) {
+                          ResumeRepository resumeRepository,
+                          OtpService otpService,
+                          LinkVerificationService linkVerificationService) {
         this.userRepository = userRepository;
         this.usernameService = usernameService;
         this.subjectBadgeRepository = subjectBadgeRepository;
@@ -80,6 +86,8 @@ public class ProfileService {
         this.missionSubmissionRepository = missionSubmissionRepository;
         this.missionRepository = missionRepository;
         this.resumeRepository = resumeRepository;
+        this.otpService = otpService;
+        this.linkVerificationService = linkVerificationService;
     }
 
     // ── Public profile ────────────────────────────────────────────────
@@ -130,9 +138,10 @@ public class ProfileService {
         res.put("linkedinUrl", user.getLinkedinUrl() != null ? user.getLinkedinUrl() : "");
         res.put("portfolioUrl", user.getPortfolioUrl() != null ? user.getPortfolioUrl() : "");
         res.put("location", user.getLocation() != null ? user.getLocation() : "");
+        res.put("mobile", user.getMobile() != null ? user.getMobile() : "");
         res.put("education", user.getEducation());
-        // Opt-in public contact email ONLY — never the private login email (user.getEmail()).
-        res.put("publicEmail", user.getPublicEmail() != null ? user.getPublicEmail() : "");
+        // Opt-in contact email for public profile display (resolved — may be login email when user chose "same").
+        res.put("publicEmail", ProfileContactEmail.resolve(user));
         res.put("badgeCount", badges.size());
         res.put("badges", badges);
 
@@ -263,21 +272,28 @@ public class ProfileService {
             user.setAvatarColor(color);
         }
 
-        // Career links — each optional; empty string clears it, otherwise must be a full URL.
-        // GitHub URL is locked when the account is OAuth-linked (disconnect to change).
-        if (req.getGithubUrl() != null) {
-            if (user.getGithubId() != null && !user.getGithubId().isBlank()) {
-                String incoming = req.getGithubUrl().trim();
-                String current = user.getGithubUrl() != null ? user.getGithubUrl().trim() : "";
-                if (!incoming.isEmpty() && !incoming.equals(current)) {
-                    throw new IllegalArgumentException("Disconnect GitHub to change your GitHub link.");
-                }
-            } else {
-                user.setGithubUrl(cleanUrl(req.getGithubUrl(), "GitHub"));
+        // GitHub profile link — OAuth only (GitHubLinkService). Manual URLs are not accepted.
+        if (req.getGithubUrl() != null && !req.getGithubUrl().trim().isEmpty()) {
+            if (user.getGithubId() == null || user.getGithubId().isBlank()) {
+                throw new IllegalArgumentException("Connect GitHub to add your profile link.");
+            }
+            String incoming = req.getGithubUrl().trim();
+            String current = user.getGithubUrl() != null ? user.getGithubUrl().trim() : "";
+            if (!incoming.equals(current)) {
+                throw new IllegalArgumentException("Disconnect GitHub to change your GitHub link.");
             }
         }
-        if (req.getLinkedinUrl() != null)  user.setLinkedinUrl(cleanUrl(req.getLinkedinUrl(), "LinkedIn"));
-        if (req.getPortfolioUrl() != null) user.setPortfolioUrl(cleanUrl(req.getPortfolioUrl(), "Portfolio"));
+        verifyProfileLinks(req);
+        if (req.getLinkedinUrl() != null) {
+            String linkedin = cleanLinkedInUrl(req.getLinkedinUrl());
+            assertLinkNotUsedByAnother(user, linkedin, userRepository::findFirstByLinkedinUrl, "LinkedIn");
+            user.setLinkedinUrl(linkedin);
+        }
+        if (req.getPortfolioUrl() != null) {
+            String portfolio = cleanPortfolioUrl(req.getPortfolioUrl());
+            assertLinkNotUsedByAnother(user, portfolio, userRepository::findFirstByPortfolioUrl, "Portfolio");
+            user.setPortfolioUrl(portfolio);
+        }
 
         if (req.getLocation() != null) {
             String loc = req.getLocation().trim();
@@ -285,18 +301,28 @@ public class ProfileService {
             user.setLocation(loc.isEmpty() ? null : loc);
         }
 
-        // Public contact email — opt-in; empty string clears it, otherwise must be a valid address.
-        // This is NOT the login email (which is never read from the request).
-        if (req.getPublicEmail() != null) {
-            String pemail = req.getPublicEmail().trim();
-            if (pemail.isEmpty()) {
-                user.setPublicEmail(null);
+        if (req.getMobile() != null) {
+            String mobile = req.getMobile().trim();
+            if (mobile.isEmpty()) {
+                user.setMobile(null);
             } else {
-                if (pemail.length() > EMAIL_MAX) throw new IllegalArgumentException("Contact email is too long");
-                if (!EMAIL_RE.matcher(pemail).matches())
-                    throw new IllegalArgumentException("Contact email must be a valid email address");
-                user.setPublicEmail(pemail);
+                if (mobile.length() > 20) throw new IllegalArgumentException("Mobile number is too long");
+                if (!MOBILE_RE.matcher(mobile).matches())
+                    throw new IllegalArgumentException("Enter a valid mobile number");
+                user.setMobile(mobile);
             }
+        }
+
+        // Contact email preference — same as login (explicit opt-in) or a separate public address.
+        if (req.getUseLoginEmailForContact() != null) {
+            boolean useLogin = Boolean.TRUE.equals(req.getUseLoginEmailForContact());
+            user.setUseLoginEmailForContact(useLogin);
+            if (useLogin) user.setPublicEmail(null);
+        }
+
+        // Custom public contact email — only when not using login email.
+        if (req.getPublicEmail() != null && !Boolean.TRUE.equals(user.getUseLoginEmailForContact())) {
+            applyContactEmail(user, req.getPublicEmail());
         }
 
         if (req.getEducation() != null) {
@@ -328,6 +354,65 @@ public class ProfileService {
         return userRepository.save(user);
     }
 
+    /** Send OTP to verify a new/changed contact email (authenticated profile editor). */
+    public long sendContactEmailOtp(User user, String rawEmail, String clientIp) {
+        String normalized = normalizeContactEmail(rawEmail);
+        assertContactEmailAllowed(user, normalized);
+        return otpService.sendContactEmailOtp(user.getId(), normalized, clientIp);
+    }
+
+    /** Verify the OTP for a contact email before saving the profile. */
+    public boolean verifyContactEmailOtp(User user, String rawEmail, String otp) {
+        if (otp == null || otp.isBlank())
+            throw new IllegalArgumentException("OTP is required");
+        String normalized = normalizeContactEmail(rawEmail);
+        assertContactEmailAllowed(user, normalized);
+        return otpService.verifyContactEmailOtp(user.getId(), normalized, otp.trim());
+    }
+
+    private void applyContactEmail(User user, String rawEmail) {
+        String pemail = rawEmail == null ? "" : rawEmail.trim();
+        if (pemail.isEmpty()) {
+            user.setPublicEmail(null);
+            return;
+        }
+        String normalized = normalizeContactEmail(pemail);
+        assertContactEmailAllowed(user, normalized);
+
+        String current = user.getPublicEmail() != null ? user.getPublicEmail().trim().toLowerCase() : "";
+        if (!normalized.equals(current)
+                && !otpService.isContactEmailVerified(user.getId(), normalized)) {
+            throw new IllegalArgumentException(
+                    "Verify your contact email with the OTP we sent before saving.");
+        }
+        user.setPublicEmail(normalized);
+        if (!normalized.equals(current)) {
+            otpService.clearContactEmail(user.getId(), normalized);
+        }
+    }
+
+    private String normalizeContactEmail(String rawEmail) {
+        if (rawEmail == null || rawEmail.isBlank())
+            throw new IllegalArgumentException("Email is required");
+        String pemail = rawEmail.trim();
+        if (pemail.length() > EMAIL_MAX) throw new IllegalArgumentException("Contact email is too long");
+        if (!EMAIL_RE.matcher(pemail).matches())
+            throw new IllegalArgumentException("Contact email must be a valid email address");
+        return pemail.toLowerCase();
+    }
+
+    private void assertContactEmailAllowed(User user, String normalized) {
+        String loginEmail = user.getEmail().trim().toLowerCase();
+        if (normalized.equals(loginEmail)) {
+            throw new IllegalArgumentException(
+                    "Choose \"Same as login\" to use your login email on your profile.");
+        }
+        if (userRepository.existsByEmail(normalized)) {
+            throw new IllegalArgumentException(
+                    "That email is already registered as a login address. Use a different contact email.");
+        }
+    }
+
     /** True when the handle is a valid format AND free (the caller's current handle counts as free). */
     public Map<String, Object> checkUsernameAvailability(User current, String raw) {
         String uname = raw == null ? "" : raw.trim().toLowerCase();
@@ -345,12 +430,13 @@ public class ProfileService {
         String degree = trimCap(e.getDegree(), EDU_FIELD_MAX);
         String field = trimCap(e.getFieldOfStudy(), EDU_FIELD_MAX);
         String institution = trimCap(e.getInstitution(), EDU_FIELD_MAX);
-        String year = trimCap(e.getGraduationYear(), 10);
+        String years = trimCap(e.getYears(), 20);
+        if (years == null) years = trimCap(e.getGraduationYear(), 20);
         String cgpa = trimCap(e.getCgpa(), 20);
-        if (degree == null && field == null && institution == null && year == null && cgpa == null) return null;
+        if (degree == null && field == null && institution == null && years == null && cgpa == null) return null;
         return Education.builder()
                 .degree(degree).fieldOfStudy(field).institution(institution)
-                .graduationYear(year).cgpa(cgpa)
+                .years(years).cgpa(cgpa)
                 .build();
     }
 
@@ -361,14 +447,63 @@ public class ProfileService {
         return v.length() > max ? v.substring(0, max) : v;
     }
 
-    /** Trims a link; returns null when blank (clears it) or validates it is a full http(s) URL. */
-    private String cleanUrl(String raw, String label) {
-        String url = raw.trim();
-        if (url.isEmpty()) return null;
-        if (url.length() > URL_MAX)
-            throw new IllegalArgumentException(label + " link is too long");
-        if (!URL_RE.matcher(url).matches())
-            throw new IllegalArgumentException(label + " link must be a full URL starting with https://");
-        return url;
+    private void verifyProfileLinks(ProfileUpdateRequest req) {
+        boolean skip = Boolean.TRUE.equals(req.getSkipLinkVerification());
+        List<LinkTarget> targets = new java.util.ArrayList<>();
+        if (req.getLinkedinUrl() != null && !req.getLinkedinUrl().trim().isEmpty()) {
+            String normalized = linkVerificationService.normalizeUrl(req.getLinkedinUrl().trim());
+            if (normalized == null || !linkVerificationService.isValidLinkedInProfileUrl(normalized)) {
+                throw new IllegalArgumentException(
+                        "Enter a LinkedIn profile URL like https://www.linkedin.com/in/your-name");
+            }
+            targets.add(new LinkTarget("LinkedIn",
+                    linkVerificationService.canonicalLinkedInUrl(normalized)));
+        }
+        if (req.getPortfolioUrl() != null && !req.getPortfolioUrl().trim().isEmpty()) {
+            String normalized = linkVerificationService.normalizeUrl(req.getPortfolioUrl().trim());
+            if (normalized == null) {
+                throw new IllegalArgumentException("Portfolio link must be a full URL starting with https://");
+            }
+            targets.add(new LinkTarget("Portfolio",
+                    linkVerificationService.canonicalPortfolioUrl(normalized)));
+        }
+        linkVerificationService.requireVerified(targets, skip);
     }
+
+    /** Trims a link; returns null when blank (clears it) or validates it is a full http(s) URL. */
+    private String cleanLinkedInUrl(String raw) {
+        if (raw == null) return null;
+        String v = raw.trim();
+        if (v.isEmpty()) return null;
+        String normalized = linkVerificationService.normalizeUrl(v);
+        if (normalized == null || !linkVerificationService.isValidLinkedInProfileUrl(normalized)) {
+            throw new IllegalArgumentException(
+                    "Enter a LinkedIn profile URL like https://www.linkedin.com/in/your-name");
+        }
+        return linkVerificationService.canonicalLinkedInUrl(normalized);
+    }
+
+    private String cleanPortfolioUrl(String raw) {
+        if (raw == null) return null;
+        String v = raw.trim();
+        if (v.isEmpty()) return null;
+        if (v.length() > URL_MAX)
+            throw new IllegalArgumentException("Portfolio link is too long");
+        String normalized = linkVerificationService.normalizeUrl(v);
+        if (normalized == null || !URL_RE.matcher(normalized).matches())
+            throw new IllegalArgumentException("Portfolio link must be a full URL starting with https://");
+        return linkVerificationService.canonicalPortfolioUrl(normalized);
+    }
+
+    private void assertLinkNotUsedByAnother(User user, String url,
+                                            java.util.function.Function<String, java.util.Optional<User>> finder,
+                                            String label) {
+        if (url == null) return;
+        java.util.Optional<User> existing = finder.apply(url);
+        if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
+            throw new IllegalArgumentException(
+                    "This " + label + " link is already linked to another account.");
+        }
+    }
+
 }

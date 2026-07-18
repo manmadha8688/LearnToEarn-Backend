@@ -27,6 +27,9 @@ public class MissionSubmission {
     private String repoUrl;
     private String deployUrl;
 
+    /** Normalized {@code owner/repo} (lowercase) for global duplicate detection. */
+    private String repoKey;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

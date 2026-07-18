@@ -85,6 +85,11 @@ public class JwtUtil {
 
     /** {@code returnTo} = validated SPA origin to redirect after OAuth (e.g. http://localhost:5173). */
     public String createOAuthState(String purpose, String userId, long ttlMs, String returnTo) {
+        return createOAuthState(purpose, userId, ttlMs, returnTo, null);
+    }
+
+    /** {@code returnPath} = validated SPA path after OAuth (e.g. /missions/abc or /myprofile). */
+    public String createOAuthState(String purpose, String userId, long ttlMs, String returnTo, String returnPath) {
         var builder = Jwts.builder()
                 .subject(userId)
                 .claim("purpose", purpose)
@@ -92,6 +97,9 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + ttlMs));
         if (returnTo != null && !returnTo.isBlank()) {
             builder.claim("returnTo", returnTo);
+        }
+        if (returnPath != null && !returnPath.isBlank()) {
+            builder.claim("returnPath", returnPath);
         }
         return builder.signWith(getKey()).compact();
     }
@@ -112,6 +120,16 @@ public class JwtUtil {
     public String extractOAuthReturnTo(String state) {
         try {
             Object r = extractClaims(state).get("returnTo");
+            return r != null ? r.toString() : null;
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** SPA path embedded at connect time; null when absent or state is invalid. */
+    public String extractOAuthReturnPath(String state) {
+        try {
+            Object r = extractClaims(state).get("returnPath");
             return r != null ? r.toString() : null;
         } catch (JwtException | IllegalArgumentException e) {
             return null;

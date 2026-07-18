@@ -35,6 +35,7 @@ public class GitHubLinkService {
     private static final String OAUTH_PURPOSE = "github_link";
     private static final long STATE_TTL_MS = 10 * 60 * 1000L;
     private static final Pattern GITHUB_LOGIN = Pattern.compile("^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$");
+    private static final Pattern SAFE_RETURN_PATH = Pattern.compile("^/(myprofile|missions/[a-f0-9]{24})$");
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
@@ -85,18 +86,24 @@ public class GitHubLinkService {
     }
 
     public String buildAuthorizeUrl(User user, HttpServletRequest request, String explicitReturnTo) {
+        return buildAuthorizeUrl(user, request, explicitReturnTo, null);
+    }
+
+    public String buildAuthorizeUrl(User user, HttpServletRequest request, String explicitReturnTo, String returnPath) {
         if (user == null || "GUEST".equals(user.getRole()))
             throw new IllegalArgumentException("Guest accounts cannot connect GitHub.");
         if (!isConfigured())
             throw new IllegalStateException("GitHub connect is not available right now.");
 
         String returnOrigin = resolveReturnOrigin(request, explicitReturnTo);
+        String safePath = sanitizeReturnPath(returnPath);
         String callback = callbackUrl(request);
-        String state = jwtUtil.createOAuthState(OAUTH_PURPOSE, user.getId(), STATE_TTL_MS, returnOrigin);
+        String state = jwtUtil.createOAuthState(OAUTH_PURPOSE, user.getId(), STATE_TTL_MS, returnOrigin, safePath);
         return "https://github.com/login/oauth/authorize"
                 + "?client_id=" + encode(clientId)
                 + "&redirect_uri=" + encode(callback)
                 + "&scope=read:user"
+                + "&allow_signup=false"
                 + "&state=" + encode(state);
     }
 
@@ -150,11 +157,18 @@ public class GitHubLinkService {
         return userRepository.save(user);
     }
 
-    /** Redirect target after OAuth — prefers origin stored in {@code state} at connect time. */
+    /** Redirect target after OAuth — prefers path stored in {@code state}, else My Profile. */
     public String frontendRedirect(String query, String state) {
         String base = resolveReturnOriginFromState(state);
+        String path = resolveReturnPathFromState(state);
         String q = (query == null || query.isBlank()) ? "" : "?" + query;
-        return base + "/myprofile" + q + "#social-links";
+        if (path == null) {
+            return base + "/myprofile" + q + "#social-links";
+        }
+        if ("/myprofile".equals(path)) {
+            return base + "/myprofile" + q + "#social-links";
+        }
+        return base + path + q;
     }
 
     public String frontendRedirect(String query) {
@@ -167,6 +181,22 @@ public class GitHubLinkService {
 
     public String frontendErrorRedirect(String reason) {
         return frontendErrorRedirect(reason, null);
+    }
+
+    private String resolveReturnPathFromState(String state) {
+        String fromState = state != null ? jwtUtil.extractOAuthReturnPath(state) : null;
+        return sanitizeReturnPath(fromState);
+    }
+
+    /** Accept only in-app relative paths we explicitly allow. */
+    private String sanitizeReturnPath(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String path = raw.trim();
+        if (!path.startsWith("/")) path = "/" + path;
+        if (path.contains("://") || path.startsWith("//")) return null;
+        String pathOnly = path.split("[?#]")[0];
+        if (!SAFE_RETURN_PATH.matcher(pathOnly).matches()) return null;
+        return pathOnly;
     }
 
     private String resolveReturnOriginFromState(String state) {

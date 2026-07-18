@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface MissionSubmissionRepository extends MongoRepository<MissionSubmission, String> {
     Optional<MissionSubmission> findByUserIdAndMissionId(String userId, String missionId);
     List<MissionSubmission> findByUserId(String userId);
+    Optional<MissionSubmission> findFirstByRepoKeyIgnoreCase(String repoKey);
 }

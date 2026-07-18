@@ -69,6 +69,19 @@ public class EmailService {
         );
     }
 
+    // ── OTP: profile contact email ───────────────────────────────────
+    public void sendContactEmailOtpEmail(String to, String otp) {
+        sendOtpEmail(
+            to, otp,
+            "Verify contact email",
+            "Verify your contact email — LearnForEarn",
+            "Use the code below to verify this address for your resume and public profile.",
+            "Need help? Contact <a href='mailto:" + HELP_EMAIL + "' style='color:#94A3B8;'>" + HELP_EMAIL + "</a>. " +
+                "Do not reply to this email — this inbox is not monitored.",
+            "Need help? Contact " + HELP_EMAIL + "\nDo not reply to this email — this inbox is not monitored."
+        );
+    }
+
     // ── OTP: password reset ──────────────────────────────────────────
     public void sendPasswordResetOtpEmail(String to, String otp) {
         sendOtpEmail(

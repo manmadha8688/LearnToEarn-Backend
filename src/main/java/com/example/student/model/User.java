@@ -41,11 +41,15 @@ public class User implements UserDetails {
 
     // Optional public contact email shown on the shareable profile (recruiter contact).
     // Deliberately SEPARATE from the private login `email` above, which is never exposed
-    // publicly. Opt-in: empty/null means it is hidden from the public profile.
+    // publicly unless the user opts in via {@link #useLoginEmailForContact}.
     private String publicEmail;
+
+    /** When true, login email is used as the resume / public-profile contact (explicit opt-in). */
+    private Boolean useLoginEmailForContact;
 
     // Personal profile details (settings page). All optional.
     private String location;
+    private String mobile;       // contact phone for resume / public contact
     private Education education;
 
     // The single resume the student chose to feature on their public profile.

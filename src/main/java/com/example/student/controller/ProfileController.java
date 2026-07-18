@@ -50,6 +50,9 @@ public class ProfileController {
             res.put("linkedinUrl", updated.getLinkedinUrl() != null ? updated.getLinkedinUrl() : "");
             res.put("portfolioUrl", updated.getPortfolioUrl() != null ? updated.getPortfolioUrl() : "");
             res.put("location", updated.getLocation() != null ? updated.getLocation() : "");
+            res.put("publicEmail", updated.getPublicEmail() != null ? updated.getPublicEmail() : "");
+            res.put("useLoginEmailForContact", Boolean.TRUE.equals(updated.getUseLoginEmailForContact()));
+            res.put("mobile", updated.getMobile() != null ? updated.getMobile() : "");
             res.put("education", updated.getEducation());
             res.put("publicProfile", updated.getPublicProfile() == null ? Boolean.TRUE : updated.getPublicProfile());
             res.put("featuredResumeId", updated.getFeaturedResumeId() != null ? updated.getFeaturedResumeId() : "");
@@ -57,6 +60,50 @@ public class ProfileController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @PostMapping("/profile/contact-email/send-otp")
+    public ResponseEntity<?> sendContactEmailOtp(@AuthenticationPrincipal User user,
+                                                 @RequestBody Map<String, String> body,
+                                                 HttpServletRequest request) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        try {
+            long cooldown = profileService.sendContactEmailOtp(user, body.get("email"), getClientIp(request));
+            if (cooldown > 0) {
+                return ResponseEntity.status(429).body(Map.of(
+                        "error", "Please wait before requesting another OTP.",
+                        "retryAfter", cooldown
+                ));
+            }
+            return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(429).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/profile/contact-email/verify-otp")
+    public ResponseEntity<?> verifyContactEmailOtp(@AuthenticationPrincipal User user,
+                                                     @RequestBody Map<String, String> body) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        try {
+            boolean ok = profileService.verifyContactEmailOtp(user, body.get("email"), body.get("otp"));
+            if (!ok) {
+                return ResponseEntity.status(400).body(Map.of("error", "Invalid or expired OTP. Please try again."));
+            }
+            return ResponseEntity.ok(Map.of("verified", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        return com.example.student.security.ClientIpResolver.resolve(request);
     }
 
     // Authenticated — live username availability check for the profile editor.
@@ -73,12 +120,14 @@ public class ProfileController {
     @GetMapping("/profile/github/connect-url")
     public ResponseEntity<?> connectGitHubUrl(@AuthenticationPrincipal User user,
                                               HttpServletRequest request,
-                                              @RequestParam(name = "returnTo", required = false) String returnTo) {
+                                              @RequestParam(name = "returnTo", required = false) String returnTo,
+                                              @RequestParam(name = "returnPath", required = false) String returnPath) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
         try {
-            return ResponseEntity.ok(Map.of("url", gitHubLinkService.buildAuthorizeUrl(user, request, returnTo)));
+            return ResponseEntity.ok(Map.of("url",
+                    gitHubLinkService.buildAuthorizeUrl(user, request, returnTo, returnPath)));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {

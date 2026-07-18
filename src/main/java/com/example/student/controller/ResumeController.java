@@ -32,7 +32,8 @@ public class ResumeController {
                                                        @RequestBody Map<String, Object> body) {
         String title = asString(body.get("title"));
         Map<String, Object> data = (Map<String, Object>) body.get("data");
-        return ResponseEntity.ok(resumeService.create(user.getId(), title, data));
+        boolean skip = parseBoolean(body.get("skipLinkVerification"));
+        return ResponseEntity.ok(resumeService.create(user.getId(), title, data, skip));
     }
 
     @PutMapping("/resumes/{id}")
@@ -42,7 +43,8 @@ public class ResumeController {
                                                        @RequestBody Map<String, Object> body) {
         String title = asString(body.get("title"));
         Map<String, Object> data = (Map<String, Object>) body.get("data");
-        return ResponseEntity.ok(resumeService.update(user.getId(), id, title, data));
+        boolean skip = parseBoolean(body.get("skipLinkVerification"));
+        return ResponseEntity.ok(resumeService.update(user.getId(), id, title, data, skip));
     }
 
     @DeleteMapping("/resumes/{id}")
@@ -68,5 +70,11 @@ public class ResumeController {
 
     private String asString(Object o) {
         return o == null ? null : String.valueOf(o);
+    }
+
+    private static boolean parseBoolean(Object value) {
+        if (value instanceof Boolean b) return b;
+        if (value == null) return false;
+        return "true".equalsIgnoreCase(String.valueOf(value));
     }
 }

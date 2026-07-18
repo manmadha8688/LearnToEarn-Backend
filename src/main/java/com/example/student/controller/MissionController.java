@@ -53,11 +53,32 @@ public class MissionController {
 
     // Auth required — save/update the hunter's repo + live demo links for this mission
     @PutMapping("/{id}/submission")
-    public ResponseEntity<MissionSubmission> saveSubmission(@PathVariable String id,
-                                                            @RequestBody Map<String, String> body,
-                                                            @AuthenticationPrincipal User user) {
-        MissionSubmission saved = submissionService.save(
-                user.getId(), id, body.get("repoUrl"), body.get("deployUrl"));
-        return ResponseEntity.ok(saved);
+    public ResponseEntity<?> saveSubmission(@PathVariable String id,
+                                            @RequestBody Map<String, Object> body,
+                                            @AuthenticationPrincipal User user) {
+        try {
+            String target = asString(body.get("target"));
+            MissionSubmission saved = submissionService.save(
+                    user, id,
+                    asString(body.get("repoUrl")),
+                    asString(body.get("deployUrl")),
+                    parseBoolean(body.get("skipLinkVerification")),
+                    target);
+            return ResponseEntity.ok(saved);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static String asString(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value).trim();
+        return s.isEmpty() ? null : s;
+    }
+
+    private static boolean parseBoolean(Object value) {
+        if (value instanceof Boolean b) return b;
+        if (value == null) return false;
+        return "true".equalsIgnoreCase(String.valueOf(value));
     }
 }

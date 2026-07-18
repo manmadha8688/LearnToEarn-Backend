@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +29,13 @@ public class ResumeService {
 
     private final ResumeRepository resumeRepo;
     private final UserRepository userRepository;
+    private final LinkVerificationService linkVerificationService;
 
-    public ResumeService(ResumeRepository resumeRepo, UserRepository userRepository) {
+    public ResumeService(ResumeRepository resumeRepo, UserRepository userRepository,
+                         LinkVerificationService linkVerificationService) {
         this.resumeRepo = resumeRepo;
         this.userRepository = userRepository;
+        this.linkVerificationService = linkVerificationService;
     }
 
     /** All of the user's resumes, newest-updated first, as safe view maps. */
@@ -45,8 +47,12 @@ public class ResumeService {
     }
 
     /** Create a new resume for the user. Enforces the per-user cap. */
-    public Map<String, Object> create(String userId, String title, Map<String, Object> data) {
-        validateData(data);
+    public Map<String, Object> create(String userId, String title, Map<String, Object> data,
+                                      boolean skipLinkVerification) {
+        Map<String, Object> stored = ResumeProfileMerge.stripProfileFields(data);
+        validateData(stored);
+        normalizeProjectLinks(stored);
+        verifyResumeLinks(stored, skipLinkVerification);
         if (resumeRepo.countByUserId(userId) >= MAX_RESUMES)
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "You can keep up to " + MAX_RESUMES + " resumes. Delete one to add another.");
@@ -54,18 +60,22 @@ public class ResumeService {
         Resume resume = Resume.builder()
                 .userId(userId)
                 .title(cleanTitle(title))
-                .data(data)
+                .data(stored)
                 .shared(false)
                 .build();
         return toView(resumeRepo.save(resume), featuredIdOf(userId));
     }
 
     /** Update the title/content of a resume the user owns. */
-    public Map<String, Object> update(String userId, String id, String title, Map<String, Object> data) {
-        validateData(data);
+    public Map<String, Object> update(String userId, String id, String title, Map<String, Object> data,
+                                      boolean skipLinkVerification) {
+        Map<String, Object> stored = ResumeProfileMerge.stripProfileFields(data);
+        validateData(stored);
+        normalizeProjectLinks(stored);
+        verifyResumeLinks(stored, skipLinkVerification);
         Resume resume = ownedOr404(userId, id);
         resume.setTitle(cleanTitle(title));
-        resume.setData(data);
+        resume.setData(stored);
         return toView(resumeRepo.save(resume), featuredIdOf(userId));
     }
 
@@ -98,15 +108,17 @@ public class ResumeService {
         return view;
     }
 
-    /** Public read by share slug — only if sharing is currently on. */
+    /** Public read by share slug — only if sharing is currently on. Profile fields merged live from owner. */
     public Map<String, Object> getPublic(String slug) {
         Resume resume = resumeRepo.findByShareSlug(slug)
                 .filter(Resume::isShared)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "This resume link is not available."));
+        User owner = userRepository.findById(resume.getUserId()).orElse(null);
+        Map<String, Object> merged = ResumeProfileMerge.mergeFromUser(owner, resume.getData());
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("title", resume.getTitle());
-        res.put("data", resume.getData() != null ? resume.getData() : Collections.emptyMap());
+        res.put("data", merged);
         res.put("updatedAt", resume.getUpdatedAt());
         return res;
     }
@@ -133,6 +145,51 @@ public class ResumeService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Resume content is required");
         if (data.size() > MAX_KEYS)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Resume content is too large");
+        // Empty resume (no sections yet) is allowed — profile fields live on User.
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeProjectLinks(Map<String, Object> data) {
+        Object raw = data.get("projects");
+        if (!(raw instanceof List<?> projects)) return;
+        java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (int i = 0; i < projects.size(); i++) {
+            Object item = projects.get(i);
+            if (!(item instanceof Map<?, ?> map)) continue;
+            Map<String, Object> copy = new LinkedHashMap<>();
+            map.forEach((k, v) -> copy.put(String.valueOf(k), v));
+            Object linkObj = copy.get("link");
+            if (linkObj != null) {
+                String link = String.valueOf(linkObj).trim();
+                if (!link.isEmpty()) {
+                    String normalized = linkVerificationService.normalizeUrl(link);
+                    if (normalized == null) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Project " + (i + 1) + ": enter a full link starting with https://");
+                    }
+                    copy.put("link", normalized);
+                }
+            }
+            out.add(copy);
+        }
+        data.put("projects", out);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void verifyResumeLinks(Map<String, Object> data, boolean skip) {
+        Object raw = data.get("projects");
+        if (!(raw instanceof List<?> projects)) return;
+        java.util.List<LinkVerificationService.LinkTarget> targets = new java.util.ArrayList<>();
+        for (int i = 0; i < projects.size(); i++) {
+            Object item = projects.get(i);
+            if (!(item instanceof Map<?, ?> map)) continue;
+            Object linkObj = map.get("link");
+            if (linkObj == null) continue;
+            String link = String.valueOf(linkObj).trim();
+            if (link.isEmpty()) continue;
+            targets.add(new LinkVerificationService.LinkTarget("Project " + (i + 1) + " link", link));
+        }
+        linkVerificationService.requireVerified(targets, skip);
     }
 
     private String cleanTitle(String title) {
@@ -167,7 +224,7 @@ public class ResumeService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.getId());
         m.put("title", r.getTitle() != null ? r.getTitle() : "My Resume");
-        m.put("data", r.getData() != null ? r.getData() : Collections.emptyMap());
+        m.put("data", ResumeProfileMerge.stripProfileFields(r.getData()));
         m.put("isPublic", r.isShared());
         m.put("shareSlug", r.getShareSlug());
         m.put("updatedAt", r.getUpdatedAt());

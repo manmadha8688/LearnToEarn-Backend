@@ -3,6 +3,7 @@ package com.example.student.config;
 import com.example.student.model.Bookmark;
 import com.example.student.model.Concept;
 import com.example.student.model.Feedback;
+import com.example.student.model.MissionSubmission;
 import com.example.student.model.QuizAttempt;
 import com.example.student.model.Report;
 import com.example.student.model.Resume;
@@ -274,6 +275,10 @@ public class DataIntegrityMigration implements CommandLineRunner {
         // Public shareable resume slug; sparse so unshared resumes (no slug) don't collide on null.
         ensureUniqueSparse(Resume.class, new Document("shareSlug", 1),
                 List.of("shareSlug"), "resumes{shareSlug}");
+
+        // One GitHub repo can only be linked to one mission submission globally.
+        ensureUniqueSparse(MissionSubmission.class, new Document("repoKey", 1),
+                List.of("repoKey"), "mission_submissions{repoKey}");
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {

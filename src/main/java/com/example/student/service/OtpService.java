@@ -16,10 +16,12 @@ public class OtpService {
 
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, OtpEntry> resetStore = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, OtpEntry> contactStore = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IpLimit> ipLimits = new ConcurrentHashMap<>();
     // Failed verification counters per email — caps brute-force guessing of the 6-digit code.
     private final ConcurrentHashMap<String, Integer> verifyFails = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> resetVerifyFails = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> contactVerifyFails = new ConcurrentHashMap<>();
 
     private static final int MAX_SENDS_PER_IP_PER_HOUR = 10;
     private static final int MAX_VERIFY_ATTEMPTS = 5;
@@ -143,18 +145,86 @@ public class OtpService {
         resetStore.remove(email);
     }
 
+    // ── Profile contact email OTP (keyed by userId:email) ──────────────
+    private static String contactKey(String userId, String email) {
+        return userId + ":" + email.trim().toLowerCase();
+    }
+
+    public long sendContactEmailOtp(String userId, String email, String clientIp) {
+        checkIpLimit(clientIp);
+
+        String key = contactKey(userId, email);
+        OtpEntry existing = contactStore.get(key);
+        LocalDateTime now = now();
+
+        if (existing != null) {
+            long cooldown = ChronoUnit.SECONDS.between(now, existing.sentAt().plusSeconds(60));
+            if (cooldown > 0) return cooldown;
+        }
+
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        contactStore.put(key, new OtpEntry(otp, now.plusMinutes(10), now, false));
+        contactVerifyFails.remove(key);
+        recordIpSend(clientIp);
+        try {
+            emailService.sendContactEmailOtpEmail(email, otp);
+        } catch (RuntimeException e) {
+            contactStore.remove(key);
+            throw e;
+        }
+        return 0;
+    }
+
+    public boolean verifyContactEmailOtp(String userId, String email, String otp) {
+        String key = contactKey(userId, email);
+        OtpEntry entry = contactStore.get(key);
+        if (entry == null) return false;
+        if (entry.expiresAt().isBefore(now())) {
+            contactStore.remove(key);
+            contactVerifyFails.remove(key);
+            return false;
+        }
+        if (!entry.otp().equals(otp.trim())) {
+            if (contactVerifyFails.merge(key, 1, Integer::sum) >= MAX_VERIFY_ATTEMPTS) {
+                contactStore.remove(key);
+                contactVerifyFails.remove(key);
+            }
+            return false;
+        }
+        contactStore.put(key, new OtpEntry(entry.otp(), entry.expiresAt(), entry.sentAt(), true));
+        contactVerifyFails.remove(key);
+        return true;
+    }
+
+    public boolean isContactEmailVerified(String userId, String email) {
+        String key = contactKey(userId, email);
+        OtpEntry entry = contactStore.get(key);
+        if (entry == null) return false;
+        if (entry.expiresAt().isBefore(now())) {
+            contactStore.remove(key);
+            return false;
+        }
+        return entry.verified();
+    }
+
+    public void clearContactEmail(String userId, String email) {
+        contactStore.remove(contactKey(userId, email));
+    }
+
     // ── Scheduled cleanup — every 15 minutes ─────────────────────────
     @Scheduled(fixedDelay = 15 * 60 * 1000)
     public void cleanupExpired() {
         LocalDateTime now = now();
         store.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
         resetStore.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
+        contactStore.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
         ipLimits.entrySet().removeIf(e ->
             ChronoUnit.HOURS.between(e.getValue().windowStart(), now) >= 1
         );
         // Drop orphaned guess counters for codes that are no longer active.
         verifyFails.keySet().removeIf(k -> !store.containsKey(k));
         resetVerifyFails.keySet().removeIf(k -> !resetStore.containsKey(k));
+        contactVerifyFails.keySet().removeIf(k -> !contactStore.containsKey(k));
     }
 
     // ── IP rate limiting ─────────────────────────────────────────────

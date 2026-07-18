@@ -37,7 +37,8 @@ public class Resume {
     /** Short label the user gives this resume, e.g. "Full Stack". */
     private String title;
 
-    /** Full resume content produced by the builder (header, summary, skills, projects, …). */
+    /** Full resume content produced by the builder. Profile-owned fields (name, email,
+     *  mobile, links, education) are stripped on save — they always come from {@link User}. */
     private Map<String, Object> data;
 
     /** Unguessable public share token. Null until the user turns sharing on. */
