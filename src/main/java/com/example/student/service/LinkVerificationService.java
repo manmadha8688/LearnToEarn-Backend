@@ -43,7 +43,7 @@ public class LinkVerificationService {
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(5))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     /** Verify all targets; throws {@link LinkVerificationException} unless skip is true. */
@@ -268,6 +268,11 @@ public class LinkVerificationService {
     private HttpProbe classifyResponse(String url, int code, boolean linkedInOverride) {
         if (code >= 200 && code < 400) {
             return new HttpProbe(Status.VERIFIED, "", "");
+        }
+        if (code >= 300 && code < 400) {
+            return new HttpProbe(Status.UNVERIFIABLE,
+                    "The link redirected — we could not verify the final destination.",
+                    "Open the link in your browser. If it loads, save without verification.");
         }
         if (code == 404) {
             return new HttpProbe(Status.UNVERIFIABLE,

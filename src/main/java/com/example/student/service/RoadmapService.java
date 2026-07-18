@@ -92,22 +92,25 @@ public class RoadmapService {
         }).collect(Collectors.toList());
     }
 
-    public RoadmapDetailDTO getRoadmapDetail(String roadmapId, String userId) {
+    public RoadmapDetailDTO getRoadmapDetail(String roadmapId, User user) {
         Roadmap roadmap = roadmapRepository.findById(roadmapId)
                 .orElseThrow(() -> new ResourceNotFoundException("Roadmap not found"));
+        if (!roadmap.isPublished() && !"ADMIN".equals(user.getRole())) {
+            throw new ResourceNotFoundException("Roadmap not found");
+        }
 
         List<RoadmapSubject> roadmapSubjects =
                 roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(roadmapId);
 
-        Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
+        Map<String, Long> completedBySubject = progressRepository.findByUserId(user.getId()).stream()
                 .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
 
-        Set<String> badgedSubjectIds = badgeRepository.findByUserId(userId).stream()
+        Set<String> badgedSubjectIds = badgeRepository.findByUserId(user.getId()).stream()
                 .map(UserSubjectBadge::getSubjectId)
                 .collect(Collectors.toSet());
 
         Optional<UserRoadmapEnrollment> enr =
-                enrollmentRepository.findByUserIdAndRoadmapId(userId, roadmapId);
+                enrollmentRepository.findByUserIdAndRoadmapId(user.getId(), roadmapId);
 
         return buildRoadmapDetail(roadmap, roadmapSubjects, completedBySubject, badgedSubjectIds,
                 enr.isPresent(), enr.map(UserRoadmapEnrollment::isPaused).orElse(false));

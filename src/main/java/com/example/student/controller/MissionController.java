@@ -38,10 +38,15 @@ public class MissionController {
 
     // Auth required — detail page
     @GetMapping("/{id}")
-    public ResponseEntity<Mission> getOne(@PathVariable String id) {
+    public ResponseEntity<Mission> getOne(@PathVariable String id,
+                                          @AuthenticationPrincipal User user) {
         Mission m = cacheService.get("missions", "id:" + id,
                 () -> missionRepository.findById(id).orElse(null));
-        return m != null ? ResponseEntity.ok(m) : ResponseEntity.notFound().build();
+        if (m == null) return ResponseEntity.notFound().build();
+        if (!m.isPublished() && (user == null || !"ADMIN".equals(user.getRole()))) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(m);
     }
 
     // Auth required — the current hunter's submitted repo + live demo links (null if none)

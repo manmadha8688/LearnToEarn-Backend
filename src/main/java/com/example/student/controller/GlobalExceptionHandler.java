@@ -79,13 +79,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500).body(Map.of("error", GENERIC_ERROR));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<?> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("Business error: {}", e.getMessage());
+        String msg = e.getMessage();
+        return ResponseEntity.badRequest().body(Map.of("error", msg != null && !msg.isBlank() ? msg : GENERIC_ERROR));
+    }
+
     // Intentional business errors are thrown as RuntimeException across services and
     // carry a user-safe message. Log server-side, return the message to the client.
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntime(RuntimeException e) {
         log.warn("Business error: {}", e.getMessage());
         String msg = e.getMessage();
-        return ResponseEntity.badRequest().body(Map.of("error", msg != null ? msg : GENERIC_ERROR));
+        return ResponseEntity.badRequest().body(Map.of("error", msg != null && !msg.isBlank() ? msg : GENERIC_ERROR));
     }
 
     // Anything else (checked/unknown) — generic 500, details only in server logs.

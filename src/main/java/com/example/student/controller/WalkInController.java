@@ -6,6 +6,7 @@ import com.example.student.service.WalkInService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,12 +62,12 @@ public class WalkInController {
 
     // ── Admin: update a walk-in ──────────────────────────────
     @PutMapping("/api/admin/walkins/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateWalkIn(
             @PathVariable String id,
             @jakarta.validation.Valid @RequestBody WalkIn walkIn,
             @AuthenticationPrincipal User user) {
-        if (user == null || !"ADMIN".equals(user.getRole()))
-            return ResponseEntity.status(403).build();
+        if (user == null) return ResponseEntity.status(401).build();
         try {
             return ResponseEntity.ok(walkInService.updateWalkIn(id, walkIn));
         } catch (RuntimeException e) {
@@ -91,12 +92,12 @@ public class WalkInController {
 
     // ── Admin: get all (including expired), paginated ────────
     @GetMapping("/api/admin/walkins")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<WalkIn>> getAllWalkIns(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal User user) {
-        if (user == null || !"ADMIN".equals(user.getRole()))
-            return ResponseEntity.status(403).build();
+        if (user == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(walkInService.getAllPaged(page, size));
     }
 }

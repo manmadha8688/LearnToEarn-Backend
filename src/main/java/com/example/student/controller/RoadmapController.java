@@ -31,7 +31,7 @@ public class RoadmapController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getRoadmapDetail(@PathVariable String id,
                                                @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(roadmapService.getRoadmapDetail(id, user.getId()));
+        return ResponseEntity.ok(roadmapService.getRoadmapDetail(id, user));
     }
 
     @PostMapping("/{id}/enroll")

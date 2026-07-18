@@ -29,9 +29,10 @@ public class EmailVerificationController {
 
         String normalized = email.trim().toLowerCase();
 
-        // Check email exists BEFORE sending OTP
-        if (userRepository.existsByEmail(normalized))
-            return ResponseEntity.status(409).body(Map.of("error", "An account with this email already exists."));
+        // Anti-enumeration: same response whether or not the email is already registered.
+        if (userRepository.existsByEmail(normalized)) {
+            return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+        }
 
         try {
             long cooldown = otpService.sendOtp(normalized, getClientIp(request));
