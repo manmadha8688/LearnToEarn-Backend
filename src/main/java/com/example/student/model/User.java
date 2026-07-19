@@ -114,6 +114,23 @@ public class User implements UserDetails {
     @Builder.Default
     private String rank = "E";
 
+    // ── Profile-completion XP (awarded ONCE per item, never reversed) ──────
+    // Each flag flips true the first time the item is observed complete, so XP is
+    // granted exactly once and clearing a field / disconnecting never deducts or re-awards.
+    // @JsonIgnore: internal ledger — must not leak in any response.
+    @JsonIgnore @Builder.Default private boolean personalXpAwarded = false;   // fullName+bio+location+contact email
+    @JsonIgnore @Builder.Default private boolean educationXpAwarded = false;  // all education fields
+    @JsonIgnore @Builder.Default private boolean githubXpAwarded = false;     // GitHub connected
+    @JsonIgnore @Builder.Default private boolean linkedinXpAwarded = false;   // LinkedIn saved
+    @JsonIgnore @Builder.Default private boolean portfolioXpAwarded = false;  // Portfolio saved
+    @JsonIgnore @Builder.Default private boolean resumeXpAwarded = false;     // resume created + featured on profile
+
+    /** XP just granted by the current operation (transient — carried to the response for a toast). */
+    @org.springframework.data.annotation.Transient
+    @JsonIgnore
+    @Builder.Default
+    private int xpEarned = 0;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

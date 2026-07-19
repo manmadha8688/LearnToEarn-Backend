@@ -1,5 +1,6 @@
 package com.example.student.service;
 
+import com.example.student.model.Mission;
 import com.example.student.model.MissionSubmission;
 import com.example.student.model.User;
 import com.example.student.repository.MissionRepository;
@@ -30,15 +31,18 @@ public class MissionSubmissionService {
     private final MissionSubmissionRepository submissionRepo;
     private final MissionRepository missionRepo;
     private final LinkVerificationService linkVerificationService;
+    private final ProgressService progressService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(5))
             .build();
 
     public MissionSubmissionService(MissionSubmissionRepository submissionRepo, MissionRepository missionRepo,
-                                    LinkVerificationService linkVerificationService) {
+                                    LinkVerificationService linkVerificationService,
+                                    ProgressService progressService) {
         this.submissionRepo = submissionRepo;
         this.missionRepo = missionRepo;
         this.linkVerificationService = linkVerificationService;
+        this.progressService = progressService;
     }
 
     /** Current hunter's submission for a mission, or null if none yet. */
@@ -46,11 +50,16 @@ public class MissionSubmissionService {
         return submissionRepo.findByUserIdAndMissionId(userId, missionId).orElse(null);
     }
 
+    /** All of the current hunter's submissions (for the mission board's per-card status). */
+    public List<MissionSubmission> listForUser(String userId) {
+        return submissionRepo.findByUserId(userId);
+    }
+
     /** Create or update repo and/or deploy link for a mission (one field per request). */
     public MissionSubmission save(User user, String missionId, String repoUrl, String deployUrl,
                                   boolean skipLinkVerification, String target) {
-        if (!missionRepo.existsById(missionId))
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found");
+        Mission mission = missionRepo.findById(missionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mission not found"));
         if (target == null || target.isBlank())
             throw new IllegalArgumentException("Save target is required (repo or deploy).");
 
@@ -60,19 +69,22 @@ public class MissionSubmissionService {
                         .missionId(missionId)
                         .build());
 
-        switch (target.trim().toLowerCase()) {
-            case "repo" -> saveRepo(user, s, repoUrl);
-            case "deploy" -> saveDeploy(s, deployUrl, skipLinkVerification);
+        int xpDelta = switch (target.trim().toLowerCase()) {
+            case "repo" -> saveRepo(user, s, repoUrl, mission.getRank());
+            case "deploy" -> saveDeploy(user, s, deployUrl, skipLinkVerification, mission.getRank());
             default -> throw new IllegalArgumentException("Save target must be repo or deploy.");
-        }
-        return submissionRepo.save(s);
+        };
+        MissionSubmission saved = submissionRepo.save(s);
+        saved.setXpEarned(xpDelta);
+        return saved;
     }
 
-    private void saveRepo(User user, MissionSubmission s, String repoUrl) {
+    /** @return XP delta (+ awarded for a newly linked repo, − reversed if the link was cleared) */
+    private int saveRepo(User user, MissionSubmission s, String repoUrl, String missionRank) {
         if (repoUrl == null || repoUrl.isBlank()) {
             s.setRepoUrl(null);
             s.setRepoKey(null);
-            return;
+            return reverseXp(user.getId(), s.getRepoXp(), amt -> s.setRepoXp(0));
         }
         String repo = clean(repoUrl, "Repository link");
         if (repo == null)
@@ -82,12 +94,16 @@ public class MissionSubmissionService {
         validateGitHubRepo(user, s, parsed, repoKey);
         s.setRepoUrl(canonicalRepoUrl(parsed));
         s.setRepoKey(repoKey);
+        // Award once — swapping to a different (still-owned) repo does not re-award.
+        return awardXp(user.getId(), s.getRepoXp(), repoXpFor(missionRank), amt -> s.setRepoXp(amt));
     }
 
-    private void saveDeploy(MissionSubmission s, String deployUrl, boolean skipLinkVerification) {
+    /** @return XP delta (+ awarded for a newly linked live demo, − reversed if the link was cleared) */
+    private int saveDeploy(User user, MissionSubmission s, String deployUrl, boolean skipLinkVerification,
+                           String missionRank) {
         if (deployUrl == null || deployUrl.isBlank()) {
             s.setDeployUrl(null);
-            return;
+            return reverseXp(user.getId(), s.getDeployXp(), amt -> s.setDeployXp(0));
         }
         String normalized = linkVerificationService.normalizeUrl(deployUrl.trim());
         if (normalized == null)
@@ -96,6 +112,45 @@ public class MissionSubmissionService {
                 List.of(new LinkVerificationService.LinkTarget("Live demo", normalized)),
                 skipLinkVerification);
         s.setDeployUrl(normalized);
+        return awardXp(user.getId(), s.getDeployXp(), deployXpFor(missionRank), amt -> s.setDeployXp(amt));
+    }
+
+    /** Grant {@code amount} XP once; no-op (returns 0) if this link was already rewarded. */
+    private int awardXp(String userId, int alreadyAwarded, int amount, java.util.function.IntConsumer record) {
+        if (alreadyAwarded > 0 || amount <= 0) return 0;
+        progressService.awardXp(userId, amount);
+        record.accept(amount);
+        return amount;
+    }
+
+    /** Reverse previously-granted XP when a link is cleared. Returns a negative delta. */
+    private int reverseXp(String userId, int alreadyAwarded, java.util.function.IntConsumer clear) {
+        if (alreadyAwarded <= 0) return 0;
+        progressService.deductXp(userId, alreadyAwarded);
+        clear.accept(0);
+        return -alreadyAwarded;
+    }
+
+    // Mission-link XP by mission rank. A live deploy (proof it runs) is worth more than the
+    // repo. Kept modest on purpose — XP also flows from quizzes, daily bonus, and badges.
+    private static int repoXpFor(String rank) {
+        return switch (rank == null ? "" : rank.trim().toUpperCase()) {
+            case "S" -> 200;
+            case "A" -> 140;
+            case "B" -> 100;
+            case "C" -> 60;
+            default  -> 40; // D and anything unset/unknown
+        };
+    }
+
+    private static int deployXpFor(String rank) {
+        return switch (rank == null ? "" : rank.trim().toUpperCase()) {
+            case "S" -> 340;
+            case "A" -> 220;
+            case "B" -> 140;
+            case "C" -> 90;
+            default  -> 50; // D and anything unset/unknown
+        };
     }
 
     private void validateGitHubRepo(User user, MissionSubmission current, ParsedRepo parsed, String repoKey) {

@@ -56,6 +56,7 @@ public class ProfileController {
             res.put("education", updated.getEducation());
             res.put("publicProfile", updated.getPublicProfile() == null ? Boolean.TRUE : updated.getPublicProfile());
             res.put("featuredResumeId", updated.getFeaturedResumeId() != null ? updated.getFeaturedResumeId() : "");
+            res.put("xpEarned", updated.getXpEarned());
             return ResponseEntity.ok(res);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

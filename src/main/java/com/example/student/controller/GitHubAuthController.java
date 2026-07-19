@@ -42,8 +42,10 @@ public class GitHubAuthController {
             return;
         }
         try {
-            gitHubLinkService.handleCallback(code, state, request);
-            response.sendRedirect(gitHubLinkService.frontendRedirect("github=connected", state));
+            com.example.student.model.User linked = gitHubLinkService.handleCallback(code, state, request);
+            String query = "github=connected";
+            if (linked != null && linked.getXpEarned() > 0) query += "&xp=" + linked.getXpEarned();
+            response.sendRedirect(gitHubLinkService.frontendRedirect(query, state));
         } catch (IllegalArgumentException e) {
             String reason = mapReason(e.getMessage());
             response.sendRedirect(gitHubLinkService.frontendErrorRedirect(reason, state));

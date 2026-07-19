@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,24 @@ public class MissionController {
         return ResponseEntity.ok(m);
     }
 
+    // Auth required — the current hunter's submitted links across all missions, for the
+    // board cards. Returns only missions with at least one saved link: [{missionId, repoUrl?, deployUrl?}]
+    @GetMapping("/submissions")
+    public ResponseEntity<List<Map<String, String>>> mySubmissions(@AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.ok(List.of());
+        List<Map<String, String>> out = submissionService.listForUser(user.getId()).stream()
+                .filter(s -> notBlank(s.getRepoUrl()) || notBlank(s.getDeployUrl()))
+                .map(s -> {
+                    Map<String, String> m = new HashMap<>();
+                    m.put("missionId", s.getMissionId());
+                    if (notBlank(s.getRepoUrl())) m.put("repoUrl", s.getRepoUrl());
+                    if (notBlank(s.getDeployUrl())) m.put("deployUrl", s.getDeployUrl());
+                    return m;
+                })
+                .toList();
+        return ResponseEntity.ok(out);
+    }
+
     // Auth required — the current hunter's submitted repo + live demo links (null if none)
     @GetMapping("/{id}/submission")
     public ResponseEntity<MissionSubmission> getSubmission(@PathVariable String id,
@@ -74,6 +93,10 @@ public class MissionController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     private static String asString(Object value) {

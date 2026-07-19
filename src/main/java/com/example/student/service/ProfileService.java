@@ -64,6 +64,7 @@ public class ProfileService {
     private final OtpService otpService;
     private final LinkVerificationService linkVerificationService;
     private final CacheService cacheService;
+    private final ProfileXpService profileXpService;
 
     public ProfileService(UserRepository userRepository,
                           UsernameService usernameService,
@@ -77,7 +78,8 @@ public class ProfileService {
                           ResumeRepository resumeRepository,
                           OtpService otpService,
                           LinkVerificationService linkVerificationService,
-                          CacheService cacheService) {
+                          CacheService cacheService,
+                          ProfileXpService profileXpService) {
         this.userRepository = userRepository;
         this.usernameService = usernameService;
         this.subjectBadgeRepository = subjectBadgeRepository;
@@ -91,6 +93,7 @@ public class ProfileService {
         this.otpService = otpService;
         this.linkVerificationService = linkVerificationService;
         this.cacheService = cacheService;
+        this.profileXpService = profileXpService;
     }
 
     // ── Public profile ────────────────────────────────────────────────
@@ -368,6 +371,9 @@ public class ProfileService {
         if (currentUsername != null && !currentUsername.equals(previousUsername)) {
             cacheService.evict("publicProfile", currentUsername);
         }
+        // Grant any one-time profile-completion XP that this save just unlocked (personal,
+        // education, LinkedIn, portfolio, resume). Sets saved.xpEarned for the response toast.
+        profileXpService.applyAwards(saved);
         return saved;
     }
 

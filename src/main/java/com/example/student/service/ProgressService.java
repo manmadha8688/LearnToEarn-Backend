@@ -131,6 +131,20 @@ public class ProgressService {
         return completeConcept(conceptId, userId, 0);
     }
 
+    /**
+     * Apply an XP delta to an in-memory User (xp/level/rank), WITHOUT persisting — the caller
+     * saves. Floors XP at 0. Used when a caller already holds the User and does its own save
+     * (e.g. profile-completion awards batched into a single profile save).
+     */
+    public int applyXp(User user, int amount) {
+        if (user == null || amount == 0) return 0;
+        long newXp = Math.max(0, user.getXp() + amount);
+        user.setXp(newXp);
+        user.setLevel(Math.max(1, (int)(newXp / 200)));
+        user.setRank(computeRank(newXp));
+        return amount;
+    }
+
     /** Award XP directly (used for subject/roadmap quiz passes) */
     public int awardXp(String userId, int amount) {
         if (amount <= 0) return 0;

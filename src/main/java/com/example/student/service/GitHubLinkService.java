@@ -40,6 +40,7 @@ public class GitHubLinkService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final ProfileXpService profileXpService;
     // Bounded connect timeout so a slow GitHub endpoint can't tie up the OAuth callback
     // thread indefinitely. Per-request timeout is set on each request below.
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -66,10 +67,12 @@ public class GitHubLinkService {
     @Value("${spring.profiles.active:local}")
     private String activeProfiles;
 
-    public GitHubLinkService(UserRepository userRepository, JwtUtil jwtUtil, ObjectMapper objectMapper) {
+    public GitHubLinkService(UserRepository userRepository, JwtUtil jwtUtil, ObjectMapper objectMapper,
+                             ProfileXpService profileXpService) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.objectMapper = objectMapper;
+        this.profileXpService = profileXpService;
     }
 
     @PostConstruct
@@ -148,7 +151,10 @@ public class GitHubLinkService {
         user.setGithubLogin(login);
         user.setGithubUrl("https://github.com/" + login);
         addProvider(user, "github");
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        // One-time "GitHub connected" profile XP (sets saved.xpEarned for the redirect toast).
+        profileXpService.applyAwards(saved);
+        return saved;
     }
 
     public User disconnect(User user) {
