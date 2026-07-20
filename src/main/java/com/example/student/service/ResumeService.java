@@ -108,12 +108,19 @@ public class ResumeService {
         return view;
     }
 
-    /** Public read by share slug — only if sharing is currently on. Profile fields merged live from owner. */
+    /**
+     * Public read by share slug. Distinguishes two cases so the share page can
+     * show two different screens: 404 when the slug does not exist (never
+     * created / deleted), 403 "private" when it exists but sharing is off.
+     * Profile fields merged live from owner.
+     */
     public Map<String, Object> getPublic(String slug) {
         Resume resume = resumeRepo.findByShareSlug(slug)
-                .filter(Resume::isShared)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "This resume link is not available."));
+                        "This resume link does not exist."));
+        if (!resume.isShared()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "private");
+        }
         User owner = userRepository.findById(resume.getUserId()).orElse(null);
         Map<String, Object> merged = ResumeProfileMerge.mergeFromUser(owner, resume.getData());
         Map<String, Object> res = new LinkedHashMap<>();
