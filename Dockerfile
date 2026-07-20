@@ -10,8 +10,12 @@ COPY src ./src
 RUN mvn clean package -DskipTests -q
 
 # ── Stage 2: Run ────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine
+# JDK (not JRE) so POST /api/code/execute has `javac` to compile user Java code,
+# alongside the toolchains for Python and C/C++ (Java 21 already in this image).
+FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
+
+RUN apk add --no-cache python3 gcc g++ musl-dev
 
 COPY --from=build /app/target/Student-BackEnd-0.0.1-SNAPSHOT.jar app.jar
 
