@@ -72,6 +72,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(404).body(Map.of("error", "Not found"));
     }
 
+    // MongoDB unreachable / pool or connect timeout → the service is overloaded or
+    // the DB is briefly unavailable. Return 503 (not a 400/500) so clients can retry.
+    @ExceptionHandler({ com.mongodb.MongoTimeoutException.class,
+                        com.mongodb.MongoSocketException.class,
+                        org.springframework.dao.DataAccessResourceFailureException.class })
+    public ResponseEntity<?> handleMongoUnavailable(Exception e) {
+        log.warn("MongoDB unavailable / timeout: {}", e.getMessage());
+        return ResponseEntity.status(503).body(Map.of("error", "Server is busy please try again"));
+    }
+
     // Genuine bugs / bad input types — never leak internals to the client.
     @ExceptionHandler({ NullPointerException.class, ClassCastException.class })
     public ResponseEntity<?> handleProgrammingError(RuntimeException e) {

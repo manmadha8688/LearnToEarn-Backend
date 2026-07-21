@@ -729,13 +729,13 @@ public class AdminService {
         p.setApproach(updates.getApproach());
         p.setWhatYouLearn(updates.getWhatYouLearn());
         p.setSolutions(updates.getSolutions());
+        p.setTestCases(updates.getTestCases());
+        p.setStarterCode(updates.getStarterCode());
         p.setExplanation(updates.getExplanation());
         p.setTip(updates.getTip());
         p.setOrderIndex(updates.getOrderIndex());
         ProblemQuestion saved = problemRepository.save(p);
-        cacheService.evict("problems", "all");
-        for (String track : PROBLEM_TRACKS) cacheService.evict("problems", "track:" + track);
-        cacheService.evict("problems", "id:" + id);
+        cacheService.evictAll("problems");
         return saved;
     }
 

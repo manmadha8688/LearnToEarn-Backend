@@ -200,6 +200,7 @@ public class AuthController {
         res.put("xp",            user.getXp());
         res.put("level",         user.getLevel());
         res.put("rank",          user.getRank() != null ? user.getRank() : "E");
+        res.put("solvedProblemIds", user.getSolvedProblemIds() != null ? user.getSolvedProblemIds() : java.util.List.of());
         res.put("createdAt",     user.getCreatedAt() != null ? user.getCreatedAt().toString() : "");
         res.put("lastLoginAt",   user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
         res.put("lastLogoutAt",  user.getLastLogoutAt() != null ? user.getLastLogoutAt().toString() : null);

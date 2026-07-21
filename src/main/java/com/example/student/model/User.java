@@ -131,6 +131,12 @@ public class User implements UserDetails {
     @Builder.Default
     private int xpEarned = 0;
 
+    // ── Code Gym solved problems (awarded ONCE per problem, never reversed) ──
+    // Ids of problems whose first full-pass Submit granted XP. Doubles as the
+    // one-time XP ledger and the "Solved" state shown in the gym list / detail.
+    @Builder.Default
+    private java.util.Set<String> solvedProblemIds = new java.util.HashSet<>();
+
     @CreatedDate
     private LocalDateTime createdAt;
 

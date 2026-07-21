@@ -4,12 +4,12 @@ import com.example.student.model.Concept;
 import com.example.student.model.Subject;
 import com.example.student.repository.ConceptRepository;
 import com.example.student.repository.MissionRepository;
-import com.example.student.repository.ProblemRepository;
 import com.example.student.repository.RoadmapRepository;
 import com.example.student.repository.RoadmapSubjectRepository;
 import com.example.student.repository.SubjectRepository;
 import com.example.student.service.AptitudeService;
 import com.example.student.service.CacheService;
+import com.example.student.service.ProblemService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -34,7 +34,7 @@ public class CacheWarmup {
     private final RoadmapRepository roadmapRepository;
     private final RoadmapSubjectRepository roadmapSubjectRepository;
     private final MissionRepository missionRepository;
-    private final ProblemRepository problemRepository;
+    private final ProblemService problemService;
     private final AptitudeService aptitudeService;
 
     public CacheWarmup(CacheService cacheService,
@@ -43,7 +43,7 @@ public class CacheWarmup {
                        RoadmapRepository roadmapRepository,
                        RoadmapSubjectRepository roadmapSubjectRepository,
                        MissionRepository missionRepository,
-                       ProblemRepository problemRepository,
+                       ProblemService problemService,
                        AptitudeService aptitudeService) {
         this.cacheService = cacheService;
         this.subjectRepository = subjectRepository;
@@ -51,7 +51,7 @@ public class CacheWarmup {
         this.roadmapRepository = roadmapRepository;
         this.roadmapSubjectRepository = roadmapSubjectRepository;
         this.missionRepository = missionRepository;
-        this.problemRepository = problemRepository;
+        this.problemService = problemService;
         this.aptitudeService = aptitudeService;
     }
 
@@ -134,15 +134,12 @@ public class CacheWarmup {
     // ─── Problems ────────────────────────────────────────────────────────────
 
     private void warmProblems() {
-        cacheService.get("problems", "all",
-                problemRepository::findAllByOrderByOrderIndexAsc);
-
+        // Warm summary DTOs (same keys ProblemService.list uses).
+        problemService.list(null);
         for (String track : com.example.student.service.AdminService.PROBLEM_TRACKS) {
-            final String t = track;
-            cacheService.get("problems", "track:" + t,
-                    () -> problemRepository.findByTrackOrderByOrderIndexAsc(t));
+            problemService.list(track);
         }
-        log.info("Cache warmup: problems warmed for all {} tracks",
+        log.info("Cache warmup: problem summaries warmed for all {} tracks",
                 com.example.student.service.AdminService.PROBLEM_TRACKS.size());
     }
 

@@ -34,6 +34,7 @@ public class CacheService {
         Map.entry("roadmaps",     86400L),   // 24 h
         Map.entry("missions",     86400L),   // 24 h — reference data, rarely changes
         Map.entry("problems",     86400L),   // 24 h — reference data, rarely changes
+        Map.entry("codingProblems",86400L),   // 24 h — LeetCode-style problems, seeded/rarely changes
         Map.entry("aptitude",     86400L),   // 24 h — reference data, rarely changes
         Map.entry("progress",     300L),     // 5 min — per-user, evicted on quiz pass / completion
         Map.entry("certificates", 300L),     // 5 min — per-user, evicted when a certificate is issued
