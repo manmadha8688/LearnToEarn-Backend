@@ -284,8 +284,11 @@ public class QuizService {
     // ─── UNLOCK STATUS ────────────────────────────────────────────────────────
 
     public Map<String, Object> getSubjectStatus(String subjectId, String userId) {
-        List<Concept> concepts = conceptRepo.findBySubjectIdOrderByOrderIndex(subjectId);
-        int conceptCount = concepts.size();
+        // Concept counts served from Caffeine (warmed on startup, evicted on admin
+        // mutation) — same strategy as buildBulkSubjectStatus. Avoids loading every
+        // Concept document just to read its size.
+        long conceptCount = cacheService.getLong("concepts", "count:" + subjectId,
+                () -> (long) conceptRepo.countBySubjectId(subjectId));
         long completed = progressRepo.countByUserIdAndSubjectId(userId, subjectId);
         boolean allMastered = conceptCount > 0 && completed >= conceptCount;
 
@@ -307,7 +310,7 @@ public class QuizService {
         m.put("hasBadge", badge.isPresent());
         m.put("badgeScore", badge.map(UserSubjectBadge::getScore).orElse(0));
         m.put("badgeTotal", badge.map(UserSubjectBadge::getTotal).orElse(0));
-        m.put("conceptCount", conceptCount);
+        m.put("conceptCount", (int) conceptCount);
         m.put("attemptCount", attempts.size());
         m.put("lastScore", latest != null ? latest.getScore() : 0);
         m.put("lastTotal", latest != null ? latest.getTotal() : 0);

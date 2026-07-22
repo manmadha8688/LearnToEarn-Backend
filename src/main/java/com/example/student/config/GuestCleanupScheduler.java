@@ -5,6 +5,7 @@ import com.example.student.repository.UserRepository;
 import com.example.student.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
+@Lazy(false) // @Scheduled beans must be eager so their tasks register under lazy-init
 public class GuestCleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(GuestCleanupScheduler.class);

@@ -24,7 +24,9 @@ public class MongoConfig {
     /**
      * Production connection-pool + timeout tuning (prod profile only — dev is left as-is).
      * Spring Boot has no property binding for these, so they are applied here to the driver:
-     * pool 5..50 connections, 5s max wait for a free connection, 5s socket connect timeout.
+     * pool 2..8 connections (M0 shared clusters throttle high connection counts; most reads
+     * hit Caffeine/Redis first), 5s max wait for a free connection, 5s socket connect timeout,
+     * 15s socket read timeout (prevents a stalled query from hanging a Tomcat thread forever).
      * When the pool/connection times out the driver raises a MongoTimeoutException, which
      * {@code GlobalExceptionHandler} maps to HTTP 503 "Server is busy please try again".
      */
@@ -33,10 +35,11 @@ public class MongoConfig {
     public MongoClientSettingsBuilderCustomizer mongoPoolCustomizer() {
         return builder -> builder
             .applyToConnectionPoolSettings(pool -> pool
-                .maxSize(50)
-                .minSize(5)
+                .maxSize(8)
+                .minSize(2)
                 .maxWaitTime(5000, TimeUnit.MILLISECONDS))
             .applyToSocketSettings(socket -> socket
-                .connectTimeout(5000, TimeUnit.MILLISECONDS));
+                .connectTimeout(5000, TimeUnit.MILLISECONDS)
+                .readTimeout(15000, TimeUnit.MILLISECONDS));
     }
 }

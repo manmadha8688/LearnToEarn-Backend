@@ -1,5 +1,6 @@
 package com.example.student.security;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * see the enterprise-scalability notes. On a single Render instance this is exact.
  */
 @Service
+@Lazy(false) // @Scheduled cleanup must be eager so its task registers under lazy-init
 public class RateLimiterService {
 
     private record Window(int count, Instant resetAt) {}

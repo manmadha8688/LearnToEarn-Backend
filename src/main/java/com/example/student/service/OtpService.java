@@ -1,5 +1,6 @@
 package com.example.student.service;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -10,6 +11,7 @@ import java.security.SecureRandom;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@Lazy(false) // @Scheduled cleanup must be eager so its task registers under lazy-init
 public class OtpService {
 
     private final EmailService emailService;

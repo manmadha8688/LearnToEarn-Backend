@@ -45,7 +45,8 @@ public class CacheService {
         Map.entry("quizStatus",   120L),    // 120 s — bulk gate quiz status, evicted on quiz pass / progress change
         Map.entry("quizHistory",  60L),     // 60 s — recent-activity sidebar (limit=5 only), evicted on quiz submit
         Map.entry("dashboardBootstrap", 30L), // 30 s — merged arena mount payload, evicted on XP / rank change
-        Map.entry("publicProfile",90L)       // 90 s — public hunter profile, evicted on self-update
+        Map.entry("publicProfile",90L),      // 90 s — public hunter profile, evicted on self-update
+        Map.entry("search",       120L)      // 120 s — public global-search results, keyed by normalized query
     );
 
     private final Map<String, Cache<String, Object>> caffeineCaches;
@@ -95,8 +96,13 @@ public class CacheService {
         // L3 — Database
         T value = dbSupplier.get();
         if (value != null) {
+            // Caffeine-hit short circuit: if another thread already populated L1 for this
+            // exact key while we were loading, the Redis SET it performed is still fresh —
+            // skip a duplicate SET to save a Redis command. Behaviour-preserving: the value
+            // is identical, and on the normal cold path (nothing in L1 yet) the SET still runs.
+            boolean alreadyFreshInCaffeine = caffeine != null && caffeine.getIfPresent(key) != null;
             if (caffeine != null) caffeine.put(key, value);
-            if (redisTemplate != null) {
+            if (redisTemplate != null && !alreadyFreshInCaffeine) {
                 try {
                     long ttl = TTLS.getOrDefault(cacheName, 3600L);
                     redisTemplate.opsForValue().set(redisKey, value, Duration.ofSeconds(ttl));

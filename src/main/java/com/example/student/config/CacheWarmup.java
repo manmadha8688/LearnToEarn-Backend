@@ -13,6 +13,7 @@ import com.example.student.service.ProblemService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import java.util.List;
  * Wrapped in try-catch — any failure never prevents the app from starting.
  */
 @Component
+@Lazy(false) // must be eager so its ApplicationReadyEvent listener registers under lazy-init
 public class CacheWarmup {
 
     private static final Logger log = LoggerFactory.getLogger(CacheWarmup.class);

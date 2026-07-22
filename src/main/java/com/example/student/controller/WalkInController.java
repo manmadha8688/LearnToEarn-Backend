@@ -46,7 +46,7 @@ public class WalkInController {
     public ResponseEntity<?> createWalkIn(
             @jakarta.validation.Valid @RequestBody WalkIn walkIn,
             @AuthenticationPrincipal User user) {
-        if (user == null) return ResponseEntity.status(401).body("Login required");
+        if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Login required"));
         try {
             WalkIn saved = walkInService.createWalkIn(walkIn, user.getEmail());
             saved.setMine(true); // poster owns it — show delete immediately

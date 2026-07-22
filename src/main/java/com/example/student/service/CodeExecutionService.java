@@ -3,6 +3,7 @@ package com.example.student.service;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -25,22 +26,25 @@ import java.util.regex.Pattern;
  * Phase 1 code runner for POST /api/code/execute: write user source to a temp
  * dir, compile if needed, run under a hard 5s wall clock, capture ≤10KB of
  * output, then delete everything. Guards applied on every run:
- *   - at most {@value #MAX_CONCURRENT} concurrent executions (rest queue on the semaphore)
+ *   - at most {@value #MAX_CONCURRENT} concurrent executions; extra callers wait up to
+ *     {@value #ACQUIRE_TIMEOUT_SEC}s for a slot, then get status QUEUED_TIMEOUT
  *   - 5s timeout → process is force-killed, status TIMEOUT
  *   - output capped at {@value #MAX_OUTPUT} bytes per stream
- *   - Java runs with -Xmx256m
+ *   - Java runs with -Xmx128m
  *   - dangerous constructs are blocked before anything runs (status BLOCKED)
  *
  * Not a real sandbox — the blocklist + timeout are Phase 1 mitigations only.
  */
 @Service
+@Lazy(false) // @Scheduled orphan-sweep + @PostConstruct must run under lazy-init
 public class CodeExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(CodeExecutionService.class);
 
     static final List<String> SUPPORTED = List.of("python", "java", "c", "cpp");
 
-    private static final int MAX_CONCURRENT = 10;
+    private static final int MAX_CONCURRENT = 3;
+    private static final long ACQUIRE_TIMEOUT_SEC = 10;
     private static final int MAX_OUTPUT = 10 * 1024;          // 10KB per stream
     private static final long RUN_TIMEOUT_SEC = 5;
     private static final long COMPILE_TIMEOUT_SEC = 10;
@@ -81,23 +85,33 @@ public class CodeExecutionService {
     /** Thrown internally when none of a language's toolchain candidates are installed. */
     private static final class ToolUnavailableException extends Exception { }
 
-    // Caps total concurrent executions; extra callers block here until a slot frees.
+    // Caps total concurrent executions; extra callers wait ACQUIRE_TIMEOUT_SEC for a slot.
     private final Semaphore slots = new Semaphore(MAX_CONCURRENT, true);
 
     public boolean isSupported(String language) {
         return language != null && SUPPORTED.contains(language);
     }
 
+    /** Max concurrent execution slots (for /api/health metrics). */
+    public int maxSlots() { return MAX_CONCURRENT; }
+
+    /** Currently in-use execution slots (for /api/health metrics). */
+    public int activeSlots() { return MAX_CONCURRENT - slots.availablePermits(); }
+
     /** Runs the code and returns { output, error, status, executionTime }. Never throws. */
     public Map<String, Object> execute(String code, String language) {
         String blocked = blockedReason(code, language);
         if (blocked != null) return result(null, blocked, "BLOCKED", 0);
 
+        boolean acquired;
         try {
-            slots.acquire();
+            acquired = slots.tryAcquire(ACQUIRE_TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return result(null, "Execution was cancelled.", "ERROR", 0);
+        }
+        if (!acquired) {
+            return result(null, "Server is busy with code executions please try again in a moment.", "QUEUED_TIMEOUT", 0);
         }
 
         Path dir = null;
@@ -146,11 +160,16 @@ public class CodeExecutionService {
         for (Case c : cases) if (!onlySamples || c.sample()) toRun.add(c);
         if (toRun.isEmpty()) return verdict("ERROR", "No test cases are available.", 0, 0, List.of(), 0);
 
+        boolean acquired;
         try {
-            slots.acquire();
+            acquired = slots.tryAcquire(ACQUIRE_TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return verdict("ERROR", "Execution was cancelled.", 0, toRun.size(), List.of(), 0);
+        }
+        if (!acquired) {
+            return verdict("QUEUED_TIMEOUT", "Server is busy with code executions please try again in a moment.",
+                    0, toRun.size(), List.of(), 0);
         }
 
         Path dir = null;
@@ -218,7 +237,7 @@ public class CodeExecutionService {
                 if (comp.timedOut) return new Prepared("Compilation timed out.", null);
                 if (comp.exit != 0) return new Prepared(firstNonEmpty(comp.err, comp.out, "Compilation failed."), null);
                 return new Prepared(null, (d, stdin) ->
-                    spawn(d, List.of("java", "-Xmx256m", "-cp", ".", cls), RUN_TIMEOUT_SEC, stdin));
+                    spawn(d, List.of("java", "-Xmx128m", "-cp", ".", cls), RUN_TIMEOUT_SEC, stdin));
             }
             case "c", "cpp" -> {
                 boolean cpp = language.equals("cpp");
@@ -340,7 +359,7 @@ public class CodeExecutionService {
         if (compile.exit != 0) return result(null, firstNonEmpty(compile.err, compile.out, "Compilation failed."), "ERROR", 0);
 
         long start = System.currentTimeMillis();
-        Proc p = spawn(dir, List.of("java", "-Xmx256m", "-cp", ".", className), RUN_TIMEOUT_SEC);
+        Proc p = spawn(dir, List.of("java", "-Xmx128m", "-cp", ".", className), RUN_TIMEOUT_SEC);
         return mapRun(p, System.currentTimeMillis() - start);
     }
 
@@ -367,13 +386,13 @@ public class CodeExecutionService {
 
     /**
      * Native (C/C++) run command. On POSIX (Docker/Linux prod) wrap the compiled
-     * binary in a shell that caps virtual memory to 256MB and CPU time to 5s via
+     * binary in a shell that caps virtual memory to 128MB and CPU time to 5s via
      * ulimit, so a runaway allocation or tight loop is killed by the OS rather than
      * starving the instance. On Windows dev there is no ulimit, so run it directly.
      */
     private static List<String> nativeRunCommand(Path dir) {
         if (IS_WINDOWS) return List.of(dir.resolve(NATIVE_BIN).toString());
-        return List.of("sh", "-c", "ulimit -v 262144; ulimit -t 5; exec ./" + NATIVE_BIN);
+        return List.of("sh", "-c", "ulimit -v 131072; ulimit -t 5; exec ./" + NATIVE_BIN);
     }
 
     /**

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Lazy(false) // security chain must be wired eagerly regardless of global lazy-init
 public class SecurityConfig {
 
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174}")
@@ -60,7 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/aptitude/topic/**", "/api/aptitude/questions/**", "/api/aptitude/mock/**").authenticated()
                 // Code Gym (/api/problems/**) and Code Arena (/api/coding-problems/**) require
                 // auth — not listed here. Aptitude lists stay public; topic content is locked above.
-                .requestMatchers("/actuator/health", "/actuator/health/**", "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/github/callback", "/api/auth/guest", "/api/auth/logout", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/forgot-password/verify-otp", "/api/auth/reset-password", "/api/ping", "/api/public-stats", "/api/public/profile/**", "/api/public/resume/**", "/api/certificates/verify/**", "/api/missions", "/api/aptitude", "/api/aptitude/**", "/api/walkins", "/api/walkins/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**", "/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/github/callback", "/api/auth/guest", "/api/auth/logout", "/api/auth/send-otp", "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/forgot-password/verify-otp", "/api/auth/reset-password", "/api/ping", "/api/health", "/api/public-stats", "/api/public/profile/**", "/api/public/resume/**", "/api/certificates/verify/**", "/api/missions", "/api/aptitude", "/api/aptitude/**", "/api/walkins", "/api/walkins/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/feedback").permitAll()
                 .anyRequest().authenticated()
             )

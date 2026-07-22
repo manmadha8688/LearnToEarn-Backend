@@ -3,6 +3,8 @@ package com.example.student.config;
 import com.example.student.model.AptitudeQuestion;
 import com.example.student.model.AptitudeTopic;
 import com.example.student.model.Bookmark;
+import com.example.student.model.Certificate;
+import com.example.student.model.CodeSubmission;
 import com.example.student.model.Concept;
 import com.example.student.model.Feedback;
 import com.example.student.model.LoginEvent;
@@ -28,6 +30,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -63,6 +66,7 @@ import java.util.stream.Collectors;
  */
 @Component
 @Order(0)
+@Lazy(false) // startup migration must run eagerly regardless of global lazy-init
 public class DataIntegrityMigration implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataIntegrityMigration.class);
@@ -308,6 +312,13 @@ public class DataIntegrityMigration implements CommandLineRunner {
                 new Document("userId", 1).append("conceptId", 1),
                 List.of("userId", "conceptId"), "user_concept_progress{userId,conceptId}");
 
+        // Per-subject progress reads (findByUserIdAndSubjectId / countByUserIdAndSubjectId) on the
+        // dashboard hot path. The {userId,conceptId} unique index can't serve a subjectId filter,
+        // so add a dedicated compound — non-unique (many concepts per subject).
+        ensureCompound(UserConceptProgress.class,
+                new Document("userId", 1).append("subjectId", 1),
+                List.of("userId", "subjectId"), "user_concept_progress{userId,subjectId}");
+
         // One badge per (user, subject).
         ensureUnique(UserSubjectBadge.class,
                 new Document("userId", 1).append("subjectId", 1),
@@ -354,6 +365,11 @@ public class DataIntegrityMigration implements CommandLineRunner {
         // Aptitude questions fetched per topic.
         ensureSimple(AptitudeQuestion.class, "topic", Sort.Direction.ASC);
 
+        // Single aptitude topic fetched by its unique slug (findByTopic — the topic-page hot
+        // path). Sparse so any legacy doc missing the slug can't collide on null.
+        ensureUniqueSparse(AptitudeTopic.class, new Document("topic", 1),
+                List.of("topic"), "aptitude_topics{topic}");
+
         // Admin dashboard trend/log queries over the append-only login event log.
         ensureSimple(LoginEvent.class, "createdAt", Sort.Direction.DESC);
 
@@ -394,6 +410,20 @@ public class DataIntegrityMigration implements CommandLineRunner {
 
         // Admin reports list, newest first.
         ensureSimple(Report.class, "createdAt", Sort.Direction.DESC);
+
+        // Code Gym submission history for one student on one problem (newest first).
+        ensureCompound(CodeSubmission.class,
+                new Document("userId", 1).append("problemId", 1).append("submittedAt", -1),
+                List.of("userId", "problemId", "submittedAt"), "code_submissions{userId,problemId,submittedAt}");
+
+        // Public certificate verification by its shareable code — unique, sparse against nulls.
+        ensureUniqueSparse(Certificate.class, new Document("code", 1),
+                List.of("code"), "certificates{code}");
+
+        // One certificate per (user, type, ref) — the upsert lookup + per-user list (userId prefix).
+        ensureUnique(Certificate.class,
+                new Document("userId", 1).append("type", 1).append("refId", 1),
+                List.of("userId", "type", "refId"), "certificates{userId,type,refId}");
     }
 
     private boolean indexExistsForKeys(Class<?> type, List<String> keys) {

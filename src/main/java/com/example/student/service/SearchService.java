@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -33,12 +34,28 @@ public class SearchService {
     private static final int FETCH_BUFFER = 12; // fetch extra, then filter unpublished in Java
 
     private final MongoTemplate mongoTemplate;
+    private final CacheService cacheService;
 
-    public SearchService(MongoTemplate mongoTemplate) {
+    public SearchService(MongoTemplate mongoTemplate, CacheService cacheService) {
         this.mongoTemplate = mongoTemplate;
+        this.cacheService = cacheService;
     }
 
     public Map<String, Object> search(String rawQuery) {
+        String q = rawQuery == null ? "" : rawQuery.trim();
+        if (q.length() < MIN_QUERY_LEN) {
+            return Map.of("query", q, "results", emptyGroups());
+        }
+        // Results are 100% public reference content (same for every user), so cache them by
+        // the normalized (lowercased) query. Repeated/popular searches then skip the
+        // multi-collection regex scan entirely. The user-supplied `query` echo is rebuilt
+        // per-caller so its casing is preserved; only the heavy group payload is cached.
+        String cacheKey = q.toLowerCase(Locale.ROOT);
+        Map<String, Object> groups = cacheService.get("search", cacheKey, () -> computeGroups(q));
+        return Map.of("query", q, "results", groups);
+    }
+
+    private Map<String, Object> emptyGroups() {
         Map<String, Object> groups = new LinkedHashMap<>();
         groups.put("subjects", List.of());
         groups.put("concepts", List.of());
@@ -46,11 +63,11 @@ public class SearchService {
         groups.put("aptitude", List.of());
         groups.put("missions", List.of());
         groups.put("problems", List.of());
+        return groups;
+    }
 
-        String q = rawQuery == null ? "" : rawQuery.trim();
-        if (q.length() < MIN_QUERY_LEN) {
-            return Map.of("query", q, "results", groups);
-        }
+    private Map<String, Object> computeGroups(String q) {
+        Map<String, Object> groups = emptyGroups();
 
         String regex = ".*" + Pattern.quote(q) + ".*";
         Query titleQuery = new Query(Criteria.where("title").regex(regex, "i")).limit(FETCH_BUFFER);
@@ -115,7 +132,7 @@ public class SearchService {
         groups.put("missions", missions);
         groups.put("problems", problems);
 
-        return Map.of("query", q, "results", groups);
+        return groups;
     }
 
     /** Aptitude result — id is the topic slug; category+group+topic build the /aptitude route. */

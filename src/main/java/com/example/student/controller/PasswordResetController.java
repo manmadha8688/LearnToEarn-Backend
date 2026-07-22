@@ -3,6 +3,7 @@ package com.example.student.controller;
 import com.example.student.dto.ResetPasswordRequest;
 import com.example.student.model.User;
 import com.example.student.repository.UserRepository;
+import com.example.student.security.RateLimiterService;
 import com.example.student.service.AuthService;
 import com.example.student.service.OtpService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,11 +20,14 @@ public class PasswordResetController {
     private final OtpService otpService;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final RateLimiterService rateLimiter;
 
-    public PasswordResetController(OtpService otpService, UserRepository userRepository, AuthService authService) {
+    public PasswordResetController(OtpService otpService, UserRepository userRepository,
+                                   AuthService authService, RateLimiterService rateLimiter) {
         this.otpService = otpService;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping("/forgot-password")
@@ -56,11 +60,19 @@ public class PasswordResetController {
     }
 
     @PostMapping("/forgot-password/verify-otp")
-    public ResponseEntity<?> verifyResetOtp(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> verifyResetOtp(@RequestBody Map<String, String> body, HttpServletRequest request) {
         String email = body.get("email");
         String otp   = body.get("otp");
         if (email == null || otp == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Email and OTP are required"));
+
+        // Throttle OTP-verification attempts per IP so a 6-digit reset code can't be brute-forced.
+        // 20 tries / 10 min is far above any legitimate reset flow but makes guessing infeasible.
+        long retryAfter = rateLimiter.hit("reset-verify", getClientIp(request), 20, 600);
+        if (retryAfter > 0)
+            return ResponseEntity.status(429).body(Map.of(
+                "error", "Too many attempts. Please try again later.",
+                "retryAfter", retryAfter));
 
         String normalized = email.trim().toLowerCase();
         // Same generic failure for unknown email and wrong/expired code (anti-enumeration).

@@ -1,5 +1,6 @@
 package com.example.student.security;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Kept in-memory (single instance) to mirror {@code OtpService}; no new infra required.
  */
 @Service
+@Lazy(false) // @Scheduled cleanup must be eager so its task registers under lazy-init
 public class LoginAttemptService {
 
     private static final int MAX_ATTEMPTS = 5;

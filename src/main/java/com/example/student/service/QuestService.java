@@ -27,7 +27,7 @@ import java.util.Map;
  *      +50 daily bonus already granted by {@link ProgressService#completeConcept} (we never
  *      re-award it here — we only surface it).
  *   q2 "Study for 45 min" — done when 45 minutes of REAL time on the arena accumulates via
- *      study pings. Awards {@link #STUDY_QUEST_XP} exactly once, the moment the target is hit.
+ *      study pings (~every 5 min). Awards {@link #STUDY_QUEST_XP} exactly once when the target is hit.
  */
 @Service
 public class QuestService {
@@ -38,10 +38,10 @@ public class QuestService {
     public static final int STUDY_QUEST_XP = 30;
     public static final int CONCEPT_QUEST_XP = 50;       // == the daily bonus already granted
 
-    // Cap the elapsed time credited per ping. The client pings roughly once a minute; capping
-    // at 90s means a tab left asleep for hours can't dump a huge chunk, and rapid/replayed
-    // pings can't fast-forward the timer (elapsed is measured from the server's lastPingAt).
-    private static final int MAX_PING_GAP_SECONDS = 90;
+    // Cap the elapsed time credited per ping. The client pings every ~5 minutes; capping
+    // slightly above that (6 min) means a tab left asleep for hours can't dump a huge chunk,
+    // and rapid/replayed pings can't fast-forward the timer (elapsed is from lastPingAt).
+    private static final int MAX_PING_GAP_SECONDS = 360;
 
     private final UserDailyQuestRepository questRepo;
     private final QuizAttemptRepository attemptRepo;
