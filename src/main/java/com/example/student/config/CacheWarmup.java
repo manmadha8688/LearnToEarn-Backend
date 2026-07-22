@@ -116,6 +116,8 @@ public class CacheWarmup {
         if (published != null) {
             for (var r : published) {
                 final String rid = r.getId();
+                final var rRef = r;
+                cacheService.get("roadmaps", "id:" + rid, () -> rRef);
                 cacheService.get("roadmaps", "subjects:" + rid,
                         () -> roadmapSubjectRepository.findByRoadmapIdOrderByOrderIndex(rid));
             }

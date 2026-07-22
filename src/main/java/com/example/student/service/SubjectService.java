@@ -1,7 +1,7 @@
 package com.example.student.service;
 
 import com.example.student.dto.ConceptDTO;
-import com.example.student.dto.SubjectDTO;
+import com.example.student.dto.SubjectListDTO;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Concept;
 import com.example.student.model.QuizAttempt;
@@ -39,12 +39,12 @@ public class SubjectService {
         this.cacheService = cacheService;
     }
 
-    public List<SubjectDTO> getAllSubjects(String userId) {
+    public List<SubjectListDTO> getAllSubjects(String userId) {
         List<Subject> subjects = cacheService.get("subjects", "all", subjectRepository::findAll);
         Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
                 .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
         return subjects.stream()
-                .map(s -> toDTO(s, completedBySubject))
+                .map(s -> toListDTO(s, completedBySubject))
                 .collect(Collectors.toList());
     }
 
@@ -60,11 +60,14 @@ public class SubjectService {
                 .map(p -> p.getConceptId())
                 .collect(Collectors.toSet());
 
-        Set<String> clearedByQuiz = attemptRepository.findByUserIdAndTypeAndPassedTrue(userId, "CONCEPT")
-                .stream().map(QuizAttempt::getRefId).collect(Collectors.toSet());
-
         List<Concept> rawConcepts = cacheService.get("concepts", "subject:" + subjectId,
                 () -> conceptRepository.findBySubjectIdOrderByOrderIndex(subjectId));
+
+        List<String> conceptIds = rawConcepts.stream().map(Concept::getId).toList();
+        Set<String> clearedByQuiz = conceptIds.isEmpty()
+                ? java.util.Set.of()
+                : attemptRepository.findByUserIdAndTypeAndPassedTrueAndRefIdIn(userId, "CONCEPT", conceptIds)
+                        .stream().map(QuizAttempt::getRefId).collect(Collectors.toSet());
 
         List<ConceptDTO> concepts = rawConcepts.stream()
                 .map(c -> toConceptDTO(c, completedByProgress, clearedByQuiz))
@@ -97,22 +100,21 @@ public class SubjectService {
         return result;
     }
 
-    public List<SubjectDTO> search(String query, String userId) {
+    public List<SubjectListDTO> search(String query, String userId) {
         Map<String, Long> completedBySubject = progressRepository.findByUserId(userId).stream()
                 .collect(Collectors.groupingBy(UserConceptProgress::getSubjectId, Collectors.counting()));
         return subjectRepository.findByTitleContainingIgnoreCase(query)
-                .stream().map(s -> toDTO(s, completedBySubject)).collect(Collectors.toList());
+                .stream().map(s -> toListDTO(s, completedBySubject)).collect(Collectors.toList());
     }
 
-    private SubjectDTO toDTO(Subject s, Map<String, Long> completedBySubject) {
+    private SubjectListDTO toListDTO(Subject s, Map<String, Long> completedBySubject) {
         // Concept count is static — safe to cache; per-user progress batched above
         long total = cacheService.getLong("concepts", "count:" + s.getId(),
                 () -> conceptRepository.countBySubjectId(s.getId()));
         long completed = completedBySubject.getOrDefault(s.getId(), 0L);
-        SubjectDTO dto = new SubjectDTO();
+        SubjectListDTO dto = new SubjectListDTO();
         dto.setId(s.getId());
         dto.setTitle(s.getTitle());
-        dto.setDescription(s.getDescription());
         dto.setIcon(s.getIcon());
         dto.setColor(s.getColor());
         dto.setTotalConcepts((int) total);

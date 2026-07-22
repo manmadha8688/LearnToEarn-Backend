@@ -251,7 +251,11 @@ public class ProfileService {
     }
 
     // ── Self update (settings) ────────────────────────────────────────
-    public User updateOwnProfile(User user, ProfileUpdateRequest req) {
+    public User updateOwnProfile(User principal, ProfileUpdateRequest req) {
+        // Reload from Mongo — never mutate/save the Security-principal cache instance.
+        // A stale principal missing solvedProblemIds would wipe Code Gym progress on save.
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         String previousUsername = user.getPublicUsername();
         if (req.getFullName() != null) {
             String name = req.getFullName().trim();

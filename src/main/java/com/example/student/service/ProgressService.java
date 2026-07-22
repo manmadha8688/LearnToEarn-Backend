@@ -1,6 +1,7 @@
 package com.example.student.service;
 
 import com.example.student.dto.ProgressSummaryDTO;
+import com.example.student.config.QuizConstants;
 import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.Concept;
 import com.example.student.model.QuizAttempt;
@@ -66,12 +67,7 @@ public class ProgressService {
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
     private static String computeRank(long xp) {
-        if (xp >= 10000) return "S";
-        if (xp >= 6000)  return "A";
-        if (xp >= 3000)  return "B";
-        if (xp >= 1500)  return "C";
-        if (xp >= 500)   return "D";
-        return "E";
+        return com.example.student.util.RankUtil.computeRank(xp);
     }
 
     /**
@@ -97,8 +93,8 @@ public class ProgressService {
         progress.setCompletedAt(LocalDateTime.now(IST));
         progressRepository.save(progress);
 
-        // XP from quiz score: score * 10 (8/10 → 80, 9/10 → 90, 10/10 → 100)
-        int conceptXp = quizScore * 10;
+        // XP: 50 base at 8/10 pass, +10 per extra correct (9→60, 10→70)
+        int conceptXp = QuizConstants.conceptQuizXp(quizScore);
 
         // Daily bonus: +50 XP if this is the FIRST concept passed today.
         // Uses QuizAttempt.takenAt (reliable timestamp set at submission time)
@@ -107,7 +103,7 @@ public class ProgressService {
         boolean isFirstToday = !quizAttemptRepository
                 .existsByUserIdAndTypeAndPassedTrueAndTakenAtAfterAndRefIdNot(
                         userId, "CONCEPT", startOfToday, conceptId);
-        int dailyBonus = isFirstToday ? 50 : 0;
+        int dailyBonus = isFirstToday ? QuizConstants.CONCEPT_DAILY_BONUS_XP : 0;
         int totalXp = conceptXp + dailyBonus;
 
         // Update User document
@@ -120,7 +116,10 @@ public class ProgressService {
         });
 
         cacheService.evict("progress", "summary:" + userId);
-        cacheService.evict("hunterStats", userId); // conceptsPassed count changed
+        cacheService.evict("hunterStats", userId);
+        cacheService.evict("dashboardBootstrap", userId);
+        cacheService.evict("quests", userId + ":" + LocalDate.now(IST));
+        cacheService.evictAll("quizStatus");
 
         return Map.of("message", "Completed", "conceptId", conceptId,
                 "xpEarned", totalXp, "dailyBonusEarned", isFirstToday);
@@ -156,6 +155,7 @@ public class ProgressService {
             userRepository.save(user);
         });
         cacheService.evict("progress", "summary:" + userId);
+        cacheService.evict("dashboardBootstrap", userId);
         return amount;
     }
 
@@ -170,6 +170,7 @@ public class ProgressService {
             userRepository.save(user);
         });
         cacheService.evict("progress", "summary:" + userId);
+        cacheService.evict("dashboardBootstrap", userId);
         return amount;
     }
 
@@ -194,15 +195,21 @@ public class ProgressService {
 
         cacheService.evict("progress", "summary:" + userId);
         cacheService.evict("hunterStats", userId); // conceptsPassed count changed
+        cacheService.evict("dashboardBootstrap", userId);
+        cacheService.evictAll("quizStatus");
         return Map.of("message", "Unmarked", "xpRemoved", refund);
     }
 
-    public ProgressSummaryDTO getProgressSummary(String userId) {
-        // L1 Caffeine → L2 Redis → buildProgressSummary (5-min TTL, evicted on mutations)
-        return cacheService.get("progress", "summary:" + userId, () -> buildProgressSummary(userId));
+    public ProgressSummaryDTO getProgressSummary(User user) {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User required");
+        }
+        String userId = user.getId();
+        final User xpSource = user;
+        return cacheService.get("progress", "summary:" + userId, () -> buildProgressSummary(userId, xpSource));
     }
 
-    private ProgressSummaryDTO buildProgressSummary(String userId) {
+    private ProgressSummaryDTO buildProgressSummary(String userId, User xpSource) {
         // Single progress fetch — reused for streak, counts, and per-subject breakdown
         List<UserConceptProgress> allProgress = progressRepository.findByUserId(userId);
         long completedConcepts = allProgress.size();
@@ -212,17 +219,22 @@ public class ProgressService {
                 : 0;
 
         // ── Streak ──────────────────────────────────────────────────────────
+        // Consecutive IST days with ≥1 concept completed. If today isn't done yet,
+        // count backward from yesterday so the streak stays visible until midnight.
         Set<LocalDate> completionDates = allProgress.stream()
                 .filter(p -> p.getCompletedAt() != null)
                 .map(p -> p.getCompletedAt().toLocalDate())
                 .collect(Collectors.toSet());
 
         int streak = 0;
-        LocalDate date = LocalDate.now(IST);
+        LocalDate today = LocalDate.now(IST);
+        LocalDate date = completionDates.contains(today) ? today : today.minusDays(1);
         while (completionDates.contains(date)) { streak++; date = date.minusDays(1); }
 
-        // ── XP / Level / Rank — read from User document (source of truth) ─────
-        User user = userRepository.findById(userId).orElse(null);
+        // ── XP / Level / Rank — prefer auth principal on cache miss (skips a User read) ─
+        User user = xpSource != null && userId.equals(xpSource.getId())
+                ? xpSource
+                : userRepository.findById(userId).orElse(null);
         long   xp    = user != null ? user.getXp()    : completedConcepts * 50L;
         int    level = user != null ? user.getLevel()  : Math.max(1, (int)(xp / 200));
         String rank  = user != null ? user.getRank()   : computeRank(xp);

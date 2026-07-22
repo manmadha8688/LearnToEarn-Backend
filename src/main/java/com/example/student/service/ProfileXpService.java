@@ -82,6 +82,7 @@ public class ProfileXpService {
             userRepository.save(user);
             cacheService.evict("progress", "summary:" + user.getId());
             cacheService.evict("hunterStats", user.getId());
+            cacheService.evict("dashboardBootstrap", user.getId());
             // Drop the cached auth principal so the next request reloads fresh flags and
             // can't award the same item twice within the lookup cache window.
             userDetailsService.evict(user.getUsername());

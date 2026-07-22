@@ -2,9 +2,14 @@ package com.example.student.controller;
 
 import com.example.student.dto.AptitudeCategoryDTO;
 import com.example.student.dto.AptitudeGroupDTO;
+import com.example.student.dto.AptitudeMockPaperDTO;
+import com.example.student.dto.AptitudeMockResultDTO;
+import com.example.student.dto.AptitudeMockSubmitDTO;
 import com.example.student.model.AptitudeQuestion;
+import com.example.student.model.User;
 import com.example.student.service.AptitudeService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,5 +62,36 @@ public class AptitudeController {
     @GetMapping("/questions/{topicId}")
     public ResponseEntity<List<AptitudeQuestion>> getQuestions(@PathVariable String topicId) {
         return ResponseEntity.ok(service.getQuestions(topicId));
+    }
+
+    /** Full 50-question core mock paper (20 quant + 15 logical + 15 verbal). Requires login. */
+    @GetMapping("/mock/paper")
+    public ResponseEntity<AptitudeMockPaperDTO> getMockPaper(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(service.buildMockPaper(user.getId()));
+    }
+
+    /** Mock retry cooldown + best score for the aptitude hub. */
+    @GetMapping("/mock/status")
+    public ResponseEntity<?> getMockStatus(@AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(service.getMockStatus(user.getId()));
+    }
+
+    /** Recent mock attempts (score summary only). */
+    @GetMapping("/mock/history")
+    public ResponseEntity<?> getMockHistory(@AuthenticationPrincipal User user,
+                                            @RequestParam(defaultValue = "10") int limit) {
+        if (user == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(service.getMockHistory(user.getId(), limit));
+    }
+
+    /** Grade a mock submission — summary stored; full review returned once on submit. */
+    @PostMapping("/mock/submit")
+    public ResponseEntity<AptitudeMockResultDTO> submitMock(@RequestBody AptitudeMockSubmitDTO body,
+                                                            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(service.submitMock(body, user.getId()));
     }
 }

@@ -158,8 +158,6 @@ public class QuizService {
         attempt.setUserId(userId);
         attempt.setType(type);
         attempt.setRefId(refId);
-        attempt.setQuestionIds(qIds);
-        attempt.setAnswers(answers);
         attempt.setScore(score);
         attempt.setTotal(total);
         attempt.setPassed(passed);
@@ -182,11 +180,13 @@ public class QuizService {
                 UserSubjectBadge b = existing.orElse(new UserSubjectBadge(null, userId, refId, 0, 0, null));
                 boolean improved = existing.isEmpty() || score > b.getScore();
                 if (improved) {
+                    int previousBest = existing.map(UserSubjectBadge::getScore).orElse(0);
                     b.setScore(score);
                     b.setTotal(total);
                     b.setEarnedAt(LocalDateTime.now(IST));
                     badgeRepo.save(b);
-                    xpEarned = progressService.awardXp(userId, score * 10);
+                    xpEarned = progressService.awardXp(userId,
+                            QuizConstants.quizXpDelta(score, previousBest, "SUBJECT"));
                 }
                 // Mint / update the Subject Mastery certificate.
                 certificateService.issueSubjectCertificate(userId, refId, score, total);
@@ -196,12 +196,14 @@ public class QuizService {
                 UserRoadmapBadge rb = existing.orElse(new UserRoadmapBadge(null, userId, refId, badge, 0, 0, null));
                 boolean improved = existing.isEmpty() || score > rb.getScore();
                 if (improved) {
+                    int previousBest = existing.map(UserRoadmapBadge::getScore).orElse(0);
                     rb.setBadge(badge);
                     rb.setScore(score);
                     rb.setTotal(total);
                     rb.setEarnedAt(LocalDateTime.now(IST));
                     roadmapBadgeRepo.save(rb);
-                    xpEarned = progressService.awardXp(userId, score * 10);
+                    xpEarned = progressService.awardXp(userId,
+                            QuizConstants.quizXpDelta(score, previousBest, "ROADMAP"));
                 }
                 // Mint / update the Career Path Completion certificate.
                 certificateService.issueRoadmapCertificate(userId, refId, badge, score, total);
@@ -212,34 +214,26 @@ public class QuizService {
         attempt.setDailyBonusEarned(dailyBonus);
         QuizAttempt saved = attemptRepo.save(attempt);
 
+        // Recent-activity sidebar (limit=5) — bust on every submit so history stays fresh.
+        cacheService.evict("quizHistory", userId + ":5");
+
         // A pass changes badges (subject/roadmap) and the concepts/subjects/roadmaps-passed
         // counts, all surfaced by getHunterStats — bust its short-TTL cache immediately.
         // (Concept passes also evict via ProgressService.completeConcept; double-evict is safe.)
         if (passed) cacheService.evict("hunterStats", userId);
+        if (passed) cacheService.evictAll("quizStatus");
 
         return new QuizResultResponse(saved.getId(), score, total, passed, badge, nextRetryAt, results, xpEarned, dailyBonus);
     }
 
     // ─── GET ATTEMPT RESULT ───────────────────────────────────────────────────
 
+    /** Summary only — per-question review is returned on submit, not stored in DB. */
     public QuizResultResponse getAttemptResult(String attemptId, String userId) {
         QuizAttempt attempt = attemptRepo.findById(attemptId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attempt not found"));
         if (!attempt.getUserId().equals(userId))
             throw new RuntimeException("Access denied");
-
-        List<Question> questions = questionRepo.findAllById(attempt.getQuestionIds());
-        Map<String, Question> qMap = questions.stream().collect(Collectors.toMap(Question::getId, q -> q));
-
-        List<QuizAnswerResult> results = new ArrayList<>();
-        for (int i = 0; i < attempt.getQuestionIds().size(); i++) {
-            Question q = qMap.get(attempt.getQuestionIds().get(i));
-            if (q == null) continue;
-            int studentAns = (i < attempt.getAnswers().size()) ? attempt.getAnswers().get(i) : -1;
-            boolean correct = (studentAns == q.getCorrectIndex());
-            results.add(new QuizAnswerResult(q.getId(), q.getText(), q.getOptions(),
-                    studentAns, q.getCorrectIndex(), correct, q.getExplanation()));
-        }
 
         String badge = null;
         if (attempt.isPassed()) {
@@ -250,7 +244,7 @@ public class QuizService {
         }
 
         return new QuizResultResponse(attempt.getId(), attempt.getScore(), attempt.getTotal(),
-                attempt.isPassed(), badge, attempt.getNextRetryAt(), results,
+                attempt.isPassed(), badge, attempt.getNextRetryAt(), List.of(),
                 attempt.getXpEarned(), attempt.isDailyBonusEarned());
     }
 
@@ -325,6 +319,17 @@ public class QuizService {
 
     // ─── BULK SUBJECT STATUS — replaces N×M DB calls with 2 queries ─────────────
     public Map<String, Object> getBulkSubjectStatus(List<String> subjectIds, String userId) {
+        List<String> sorted = subjectIds.stream().sorted().toList();
+        String cacheKey = userId + ":" + String.join(",", sorted);
+        if (cacheKey.length() > 480) {
+            cacheKey = userId + ":" + sorted.size() + ":" + sorted.hashCode();
+        }
+        final List<String> ids = sorted;
+        final String key = cacheKey;
+        return cacheService.get("quizStatus", "bulk:" + key, () -> buildBulkSubjectStatus(ids, userId));
+    }
+
+    private Map<String, Object> buildBulkSubjectStatus(List<String> subjectIds, String userId) {
         // Query 1: all badges for this user (one round-trip)
         Map<String, UserSubjectBadge> badgeMap = badgeRepo.findByUserId(userId)
                 .stream().collect(Collectors.toMap(UserSubjectBadge::getSubjectId, b -> b));
@@ -380,6 +385,14 @@ public class QuizService {
      */
     public List<Map<String, Object>> getQuizHistory(String userId, int limit) {
         int effectiveLimit = limit <= 0 ? 50 : limit;
+        if (effectiveLimit == 5) {
+            return cacheService.get("quizHistory", userId + ":5",
+                    () -> buildQuizHistory(userId, effectiveLimit));
+        }
+        return buildQuizHistory(userId, effectiveLimit);
+    }
+
+    private List<Map<String, Object>> buildQuizHistory(String userId, int effectiveLimit) {
         List<QuizAttempt> attempts = attemptRepo.findByUserIdOrderByTakenAtDesc(
                 userId, org.springframework.data.domain.PageRequest.of(0, effectiveLimit));
         if (attempts.isEmpty()) return List.of();
@@ -409,6 +422,7 @@ public class QuizService {
                 case "CONCEPT" -> conceptNames.getOrDefault(a.getRefId(), "Concept");
                 case "SUBJECT" -> subjectNames.getOrDefault(a.getRefId(), "Subject");
                 case "ROADMAP" -> roadmapNames.getOrDefault(a.getRefId(), "Career Path");
+                case "APTITUDE_MOCK" -> "Core Aptitude Mock";
                 default -> "Quiz";
             };
             int pct = a.getTotal() > 0 ? (int) Math.round(a.getScore() * 100.0 / a.getTotal()) : 0;

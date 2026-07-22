@@ -34,12 +34,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User cached = userCache.getIfPresent(email);
-        if (cached != null) return cached;
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
-        userCache.put(email, user);
-        return user;
+        // Atomic per-key load — avoids a stampede putting a stale User back into the
+        // cache after Code Gym solve eviction (stale /auth/me hid "Solved" badges).
+        return userCache.get(email, key -> userRepository.findByEmail(key)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + key)));
     }
 
     /** Evict a cached user so the next request reloads fresh — call whenever tokenVersion changes. */

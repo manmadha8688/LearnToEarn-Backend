@@ -4,6 +4,7 @@ import com.example.student.exception.ResourceNotFoundException;
 import com.example.student.model.User;
 import com.example.student.repository.UserRepository;
 import com.example.student.security.JwtUtil;
+import com.example.student.security.UserDetailsServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -41,6 +42,7 @@ public class GitHubLinkService {
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
     private final ProfileXpService profileXpService;
+    private final UserDetailsServiceImpl userDetailsService;
     // Bounded connect timeout so a slow GitHub endpoint can't tie up the OAuth callback
     // thread indefinitely. Per-request timeout is set on each request below.
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -68,11 +70,12 @@ public class GitHubLinkService {
     private String activeProfiles;
 
     public GitHubLinkService(UserRepository userRepository, JwtUtil jwtUtil, ObjectMapper objectMapper,
-                             ProfileXpService profileXpService) {
+                             ProfileXpService profileXpService, UserDetailsServiceImpl userDetailsService) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.objectMapper = objectMapper;
         this.profileXpService = profileXpService;
+        this.userDetailsService = userDetailsService;
     }
 
     @PostConstruct
@@ -154,6 +157,9 @@ public class GitHubLinkService {
         User saved = userRepository.save(user);
         // One-time "GitHub connected" profile XP (sets saved.xpEarned for the redirect toast).
         profileXpService.applyAwards(saved);
+        // Always bust the auth lookup cache — reconnect after disconnect awards 0 XP so
+        // applyAwards skips eviction, but /auth/me must still see githubId/githubLogin.
+        evictAuthCache(saved);
         return saved;
     }
 
@@ -164,7 +170,9 @@ public class GitHubLinkService {
         user.setGithubLogin(null);
         user.setGithubUrl(null);
         removeProvider(user, "github");
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        evictAuthCache(saved);
+        return saved;
     }
 
     /** Redirect target after OAuth — prefers path stored in {@code state}, else My Profile. */
@@ -441,5 +449,12 @@ public class GitHubLinkService {
     private void removeProvider(User user, String provider) {
         List<String> providers = user.getProviders();
         if (providers != null) providers.remove(provider);
+    }
+
+    /** Drop cached {@link User} principal so the next /auth/me reloads GitHub fields. */
+    private void evictAuthCache(User user) {
+        if (user != null && user.getEmail() != null) {
+            userDetailsService.evict(user.getEmail());
+        }
     }
 }

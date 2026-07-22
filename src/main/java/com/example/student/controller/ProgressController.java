@@ -33,7 +33,7 @@ public class ProgressController {
 
     @GetMapping("/summary")
     public ResponseEntity<?> summary(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(progressService.getProgressSummary(user.getId()));
+        return ResponseEntity.ok(progressService.getProgressSummary(user));
     }
 
     @GetMapping("/hunter-stats")
@@ -41,7 +41,7 @@ public class ProgressController {
         return ResponseEntity.ok(progressService.getHunterStats(user.getId()));
     }
 
-    /** Today's daily-quest state (concept quest + 30-min study quest). */
+    /** Today's daily-quest state (concept quest + 45-min study quest). */
     @GetMapping("/quests")
     public ResponseEntity<?> quests(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(questService.getQuests(user.getId()));
@@ -49,7 +49,7 @@ public class ProgressController {
 
     /**
      * Heartbeat sent by the arena while the student is active. Credits real elapsed time
-     * toward the study quest and awards its XP once the 30-minute target is reached.
+     * toward the study quest and awards its XP once the 45-minute target is reached.
      */
     @PostMapping("/study-ping")
     public ResponseEntity<?> studyPing(@AuthenticationPrincipal User user) {

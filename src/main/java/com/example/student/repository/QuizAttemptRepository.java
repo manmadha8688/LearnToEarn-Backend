@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, String> {
     List<QuizAttempt> findByUserIdAndTypeAndRefId(String userId, String type, String refId);
     List<QuizAttempt> findByUserIdAndTypeAndPassedTrue(String userId, String type);
+    List<QuizAttempt> findByUserIdAndTypeAndPassedTrueAndRefIdIn(String userId, String type, java.util.Collection<String> refIds);
     // Full attempt history for a student, newest first (concept trials, gate tests, path exams)
     List<QuizAttempt> findByUserIdOrderByTakenAtDesc(String userId);
     // Bounded variant — pushes the row cap into Mongo instead of trimming in memory.

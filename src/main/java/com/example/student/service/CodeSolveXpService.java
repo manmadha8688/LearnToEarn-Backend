@@ -78,22 +78,31 @@ public class CodeSolveXpService {
                     existing.getRank() != null ? existing.getRank() : "E", false);
         }
 
-        // We just added the id → this is the first solve. Apply XP + rank on top.
+        // We just added the id → this is the first solve. Apply XP + rank via $set
+        // (not a full-document save) so a concurrent stale principal save can't wipe
+        // the solvedProblemIds we just wrote with $addToSet.
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) return SolveResult.none();
 
         String rankBefore = user.getRank() != null ? user.getRank() : "E";
         int xp = xpFor(problem.getTrack(), problem.getLevel());
         progressService.applyXp(user, xp); // mutates xp/level/rank in-memory
-        userRepository.save(user);
+
+        String rankAfter = user.getRank() != null ? user.getRank() : "E";
+        mongoTemplate.updateFirst(
+                new Query(Criteria.where("_id").is(userId)),
+                new Update()
+                        .set("xp", user.getXp())
+                        .set("level", user.getLevel())
+                        .set("rank", rankAfter),
+                User.class);
 
         cacheService.evict("progress", "summary:" + userId);
         cacheService.evict("hunterStats", userId);
+        cacheService.evict("dashboardBootstrap", userId);
         userDetailsService.evict(user.getUsername());
 
-        String rankAfter = user.getRank() != null ? user.getRank() : "E";
         boolean rankUp = !rankAfter.equals(rankBefore);
-
         return new SolveResult(true, true, xp, user.getXp(), rankAfter, rankUp);
     }
 

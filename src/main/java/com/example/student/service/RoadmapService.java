@@ -72,7 +72,6 @@ public class RoadmapService {
             RoadmapListDTO dto = new RoadmapListDTO();
             dto.setId(r.getId());
             dto.setTitle(r.getTitle());
-            dto.setDescription(r.getDescription());
             dto.setRoleTarget(r.getRoleTarget());
             dto.setIcon(r.getIcon());
             dto.setColor(r.getColor());
@@ -81,13 +80,6 @@ public class RoadmapService {
             dto.setEnrolled(enrolled);
             dto.setPaused(paused);
             dto.setAllSubjectsDone(allSubjectsDone);
-            dto.setRoleTargets(r.getRoleTargets());
-            dto.setOverview(r.getOverview());
-            dto.setWhyLearn(r.getWhyLearn());
-            dto.setForWho(r.getForWho());
-            dto.setPrerequisites(r.getPrerequisites());
-            dto.setToolsRequired(r.getToolsRequired());
-            dto.setOutcomes(r.getOutcomes());
             return dto;
         }).collect(Collectors.toList());
     }

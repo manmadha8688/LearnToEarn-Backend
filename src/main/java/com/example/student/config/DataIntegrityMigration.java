@@ -23,6 +23,7 @@ import com.example.student.model.UserSubjectBadge;
 import com.example.student.model.WalkIn;
 import com.example.student.repository.UserRepository;
 import com.example.student.service.UsernameService;
+import com.example.student.util.RankUtil;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,10 +82,12 @@ public class DataIntegrityMigration implements CommandLineRunner {
     @Override
     public void run(String... args) {
         dedupeRoadmapSubjects();
+        reconcileUserRanks();
         backfillUsernames();
         backfillProviders();
         dropLegacyConceptFields();
         migrateResumeSharedFlag();
+        stripQuizAttemptQuestionPayload();
         ensureIndexes();
     }
 
@@ -168,6 +171,30 @@ public class DataIntegrityMigration implements CommandLineRunner {
         log.info("DataIntegrityMigration: backfilled providers=[local] for {} user(s)", assigned);
     }
 
+    /**
+     * Recompute stored rank from total XP so threshold changes apply immediately.
+     * Idempotent — only saves when the stored letter differs from {@link RankUtil}.
+     */
+    private void reconcileUserRanks() {
+        Query q = new Query(Criteria.where("role").ne("GUEST"));
+        List<User> users = mongoTemplate.find(q, User.class);
+        int updated = 0;
+        for (User u : users) {
+            String computed = RankUtil.computeRank(u.getXp());
+            String stored = u.getRank() != null ? u.getRank() : "E";
+            if (!computed.equals(stored)) {
+                u.setRank(computed);
+                userRepository.save(u);
+                updated++;
+            }
+        }
+        if (updated > 0) {
+            log.info("DataIntegrityMigration: reconciled rank for {} user(s)", updated);
+        } else {
+            log.info("DataIntegrityMigration: user ranks clean — no reconciliation needed");
+        }
+    }
+
     /** Assign a unique username to every non-guest user that predates the profile feature. */
     private void backfillUsernames() {
         Query q = new Query(new Criteria().andOperator(
@@ -221,6 +248,25 @@ public class DataIntegrityMigration implements CommandLineRunner {
      * if an index on the same key(s) doesn't already exist, so this stays quiet and
      * idempotent across restarts regardless of how existing indexes were named.
      */
+    /** Drop bulky per-question payloads — history keeps score/total/pass only. */
+    private void stripQuizAttemptQuestionPayload() {
+        try {
+            Query q = new Query(new Criteria().orOperator(
+                    Criteria.where("questionIds").exists(true),
+                    Criteria.where("answers").exists(true)));
+            long pending = mongoTemplate.count(q, QuizAttempt.class);
+            if (pending == 0) {
+                log.info("DataIntegrityMigration: quiz_attempts clean — no question payloads");
+                return;
+            }
+            long cleaned = mongoTemplate.updateMulti(q,
+                    new Update().unset("questionIds").unset("answers"), QuizAttempt.class).getModifiedCount();
+            log.info("DataIntegrityMigration: stripped question payloads from {} quiz_attempt(s)", cleaned);
+        } catch (Exception e) {
+            log.warn("DataIntegrityMigration: quiz_attempts payload strip — {}", e.getMessage());
+        }
+    }
+
     private void ensureIndexes() {
         ensureUnique(RoadmapSubject.class,
                 new Document("roadmapId", 1).append("subjectId", 1),
@@ -332,6 +378,14 @@ public class DataIntegrityMigration implements CommandLineRunner {
         ensureCompound(QuizAttempt.class,
                 new Document("userId", 1).append("takenAt", -1),
                 List.of("userId", "takenAt"), "quiz_attempts{userId,takenAt}");
+
+        // Today's concept-pass checks + subject-scoped trial lookups.
+        ensureCompound(QuizAttempt.class,
+                new Document("userId", 1).append("type", 1).append("passed", 1).append("takenAt", -1),
+                List.of("userId", "type", "passed", "takenAt"), "quiz_attempts{userId,type,passed,takenAt}");
+        ensureCompound(QuizAttempt.class,
+                new Document("userId", 1).append("type", 1).append("refId", 1).append("passed", 1),
+                List.of("userId", "type", "refId", "passed"), "quiz_attempts{userId,type,refId,passed}");
 
         // Bookmark list: newest first per user.
         ensureCompound(Bookmark.class,

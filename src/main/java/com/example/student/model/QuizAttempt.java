@@ -6,7 +6,6 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Document(collection = "quiz_attempts")
 @CompoundIndex(def = "{'userId': 1, 'type': 1, 'refId': 1}")
@@ -19,9 +18,6 @@ public class QuizAttempt {
     private String userId;
     private String type;     // CONCEPT | SUBJECT | ROADMAP
     private String refId;    // conceptId / subjectId / roadmapId
-
-    private List<String> questionIds;
-    private List<Integer> answers;
 
     private int score;
     private int total;

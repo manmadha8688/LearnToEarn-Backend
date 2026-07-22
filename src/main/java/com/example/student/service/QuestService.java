@@ -26,7 +26,7 @@ import java.util.Map;
  *   q1 "Complete 1 concept" — done when a CONCEPT quiz was passed today. Its reward is the
  *      +50 daily bonus already granted by {@link ProgressService#completeConcept} (we never
  *      re-award it here — we only surface it).
- *   q2 "Study for 30 min" — done when 30 minutes of REAL time on the arena accumulates via
+ *   q2 "Study for 45 min" — done when 45 minutes of REAL time on the arena accumulates via
  *      study pings. Awards {@link #STUDY_QUEST_XP} exactly once, the moment the target is hit.
  */
 @Service
@@ -34,8 +34,8 @@ public class QuestService {
 
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
-    public static final int STUDY_TARGET_SECONDS = 1800; // 30 minutes
-    public static final int STUDY_QUEST_XP = 40;
+    public static final int STUDY_TARGET_SECONDS = 2700; // 45 minutes
+    public static final int STUDY_QUEST_XP = 30;
     public static final int CONCEPT_QUEST_XP = 50;       // == the daily bonus already granted
 
     // Cap the elapsed time credited per ping. The client pings roughly once a minute; capping
@@ -46,22 +46,26 @@ public class QuestService {
     private final UserDailyQuestRepository questRepo;
     private final QuizAttemptRepository attemptRepo;
     private final ProgressService progressService;
+    private final CacheService cacheService;
 
     public QuestService(UserDailyQuestRepository questRepo,
                         QuizAttemptRepository attemptRepo,
-                        ProgressService progressService) {
+                        ProgressService progressService,
+                        CacheService cacheService) {
         this.questRepo = questRepo;
         this.attemptRepo = attemptRepo;
         this.progressService = progressService;
+        this.cacheService = cacheService;
     }
 
     public Map<String, Object> getQuests(String userId) {
-        return toState(loadToday(userId), userId);
+        String key = userId + ":" + LocalDate.now(IST);
+        return cacheService.get("quests", key, () -> toState(loadToday(userId), userId));
     }
 
     /**
      * Credits real elapsed time (server-measured) toward the study quest and, the first time
-     * the 30-minute target is reached, awards the study-quest XP exactly once.
+     * the 45-minute target is reached, awards the study-quest XP exactly once.
      *
      * Deliberately NOT wrapped in a multi-document @Transactional: the client fires pings
      * concurrently (React StrictMode double-mounts in dev, multiple tabs in prod), and a
@@ -102,6 +106,7 @@ public class QuestService {
                 if (justCompleted) {
                     progressService.awardXp(userId, STUDY_QUEST_XP);
                 }
+                evictQuests(userId);
                 return toState(q, userId);
             } catch (DuplicateKeyException | OptimisticLockingFailureException e) {
                 // A concurrent ping created/updated today's doc first — re-read and retry.
@@ -145,7 +150,7 @@ public class QuestService {
 
         Map<String, Object> q2 = new LinkedHashMap<>();
         q2.put("id", "q2");
-        q2.put("label", "Study for 30 min");
+        q2.put("label", "Study for 45 min");
         q2.put("xp", STUDY_QUEST_XP);
         q2.put("done", studyDone);
         q2.put("progressSeconds", studySeconds);
@@ -166,5 +171,9 @@ public class QuestService {
         res.put("earnedXp", earnedXp);
         res.put("quests", quests);
         return res;
+    }
+
+    private void evictQuests(String userId) {
+        cacheService.evict("quests", userId + ":" + LocalDate.now(IST));
     }
 }

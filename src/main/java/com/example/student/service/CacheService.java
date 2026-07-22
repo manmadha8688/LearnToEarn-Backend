@@ -41,6 +41,10 @@ public class CacheService {
         Map.entry("publicStats",  300L),     // 5 min — landing-page counts, cheap-to-spam public endpoint
         Map.entry("adminStats",   90L),      // 90 s — admin dashboard aggregate counts (heavy to compute)
         Map.entry("hunterStats",  60L),      // 60 s — per-user badges/counts, evicted on quiz pass / uncomplete
+        Map.entry("quests",       60L),      // 60 s — daily quest snapshot, evicted on concept pass / study ping
+        Map.entry("quizStatus",   120L),    // 120 s — bulk gate quiz status, evicted on quiz pass / progress change
+        Map.entry("quizHistory",  60L),     // 60 s — recent-activity sidebar (limit=5 only), evicted on quiz submit
+        Map.entry("dashboardBootstrap", 30L), // 30 s — merged arena mount payload, evicted on XP / rank change
         Map.entry("publicProfile",90L)       // 90 s — public hunter profile, evicted on self-update
     );
 
