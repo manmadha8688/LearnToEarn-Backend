@@ -32,17 +32,20 @@ public class MissionSubmissionService {
     private final MissionRepository missionRepo;
     private final LinkVerificationService linkVerificationService;
     private final ProgressService progressService;
+    private final RankEvaluationService rankEvaluationService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(5))
             .build();
 
     public MissionSubmissionService(MissionSubmissionRepository submissionRepo, MissionRepository missionRepo,
                                     LinkVerificationService linkVerificationService,
-                                    ProgressService progressService) {
+                                    ProgressService progressService,
+                                    RankEvaluationService rankEvaluationService) {
         this.submissionRepo = submissionRepo;
         this.missionRepo = missionRepo;
         this.linkVerificationService = linkVerificationService;
         this.progressService = progressService;
+        this.rankEvaluationService = rankEvaluationService;
     }
 
     /** Current hunter's submission for a mission, or null if none yet. */
@@ -76,6 +79,8 @@ public class MissionSubmissionService {
         };
         MissionSubmission saved = submissionRepo.save(s);
         saved.setXpEarned(xpDelta);
+        // Completed missions (by rank) are a rank pillar — re-evaluate rank (raise-only).
+        rankEvaluationService.reevaluate(user.getId());
         return saved;
     }
 

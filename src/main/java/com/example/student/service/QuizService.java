@@ -32,6 +32,7 @@ public class QuizService {
     private final UserConceptProgressRepository progressRepo;
     private final CertificateService certificateService;
     private final CacheService cacheService;
+    private final RankEvaluationService rankEvaluationService;
 
     public QuizService(QuestionRepository questionRepo,
                        QuizAttemptRepository attemptRepo,
@@ -44,7 +45,8 @@ public class QuizService {
                        ProgressService progressService,
                        UserConceptProgressRepository progressRepo,
                        CertificateService certificateService,
-                       CacheService cacheService) {
+                       CacheService cacheService,
+                       RankEvaluationService rankEvaluationService) {
         this.questionRepo = questionRepo;
         this.attemptRepo = attemptRepo;
         this.badgeRepo = badgeRepo;
@@ -57,6 +59,7 @@ public class QuizService {
         this.progressRepo = progressRepo;
         this.certificateService = certificateService;
         this.cacheService = cacheService;
+        this.rankEvaluationService = rankEvaluationService;
     }
 
     // ─── START ────────────────────────────────────────────────────────────────
@@ -141,7 +144,7 @@ public class QuizService {
         boolean passed = switch (type) {
             case "CONCEPT" -> score >= QuizConstants.CONCEPT_PASS;
             case "SUBJECT" -> score >= QuizConstants.SUBJECT_PASS;
-            case "ROADMAP" -> score >= QuizConstants.ROADMAP_INTERVIEW_READY;
+            case "ROADMAP" -> score >= QuizConstants.ROADMAP_PASS;
             default -> false;
         };
 
@@ -191,7 +194,8 @@ public class QuizService {
                 // Mint / update the Subject Mastery certificate.
                 certificateService.issueSubjectCertificate(userId, refId, score, total);
             } else if ("ROADMAP".equals(type)) {
-                badge = score >= QuizConstants.ROADMAP_JOB_READY ? "JOB_READY" : "INTERVIEW_READY";
+                // Passing the path trial = full completion; single badge (no separate tier).
+                badge = "JOB_READY";
                 var existing = roadmapBadgeRepo.findByUserIdAndRoadmapId(userId, refId);
                 UserRoadmapBadge rb = existing.orElse(new UserRoadmapBadge(null, userId, refId, badge, 0, 0, null));
                 boolean improved = existing.isEmpty() || score > rb.getScore();
@@ -223,6 +227,9 @@ public class QuizService {
         if (passed) cacheService.evict("hunterStats", userId);
         if (passed) cacheService.evictAll("quizStatus");
 
+        // A pass changes rank pillars (subjects/paths + XP) — re-evaluate rank (raise-only).
+        if (passed) rankEvaluationService.reevaluate(userId);
+
         return new QuizResultResponse(saved.getId(), score, total, passed, badge, nextRetryAt, results, xpEarned, dailyBonus);
     }
 
@@ -239,7 +246,7 @@ public class QuizService {
         if (attempt.isPassed()) {
             if ("SUBJECT".equals(attempt.getType())) badge = "SUBJECT_MASTERED";
             else if ("ROADMAP".equals(attempt.getType())) {
-                badge = attempt.getScore() >= QuizConstants.ROADMAP_JOB_READY ? "JOB_READY" : "INTERVIEW_READY";
+                badge = "JOB_READY";
             }
         }
 

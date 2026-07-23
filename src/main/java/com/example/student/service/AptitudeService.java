@@ -89,6 +89,7 @@ public class AptitudeService {
     private final QuizAttemptRepository attemptRepo;
     private final ProgressService progressService;
     private final CacheService cacheService;
+    private final RankEvaluationService rankEvaluationService;
 
     public AptitudeService(AptitudeTopicRepository topicRepo,
                            LogicalTopicRepository logicalRepo,
@@ -97,7 +98,8 @@ public class AptitudeService {
                            AptitudeQuestionRepository questionRepo,
                            QuizAttemptRepository attemptRepo,
                            ProgressService progressService,
-                           CacheService cacheService) {
+                           CacheService cacheService,
+                           RankEvaluationService rankEvaluationService) {
         this.topicRepo = topicRepo;
         this.logicalRepo = logicalRepo;
         this.verbalRepo = verbalRepo;
@@ -106,6 +108,7 @@ public class AptitudeService {
         this.attemptRepo = attemptRepo;
         this.progressService = progressService;
         this.cacheService = cacheService;
+        this.rankEvaluationService = rankEvaluationService;
     }
 
     /** All 4 categories with their live group + topic counts. */
@@ -346,6 +349,8 @@ public class AptitudeService {
         cacheService.evict("aptitudeMockStatus", userId);
         cacheService.evict("aptitudeMockHistory", userId + ":10");
         if (xpEarned > 0) cacheService.evict("hunterStats", userId);
+        // Mock best score is a rank pillar — re-evaluate (raise-only) after the attempt.
+        rankEvaluationService.reevaluate(userId);
 
         return AptitudeMockResultDTO.builder()
                 .attemptId(saved.getId())

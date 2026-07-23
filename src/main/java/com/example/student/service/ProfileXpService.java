@@ -33,15 +33,18 @@ public class ProfileXpService {
     private final ProgressService progressService;
     private final CacheService cacheService;
     private final UserDetailsServiceImpl userDetailsService;
+    private final RankEvaluationService rankEvaluationService;
 
     public ProfileXpService(UserRepository userRepository,
                             ProgressService progressService,
                             CacheService cacheService,
-                            UserDetailsServiceImpl userDetailsService) {
+                            UserDetailsServiceImpl userDetailsService,
+                            RankEvaluationService rankEvaluationService) {
         this.userRepository = userRepository;
         this.progressService = progressService;
         this.cacheService = cacheService;
         this.userDetailsService = userDetailsService;
+        this.rankEvaluationService = rankEvaluationService;
     }
 
     /**
@@ -88,6 +91,8 @@ public class ProfileXpService {
             userDetailsService.evict(user.getUsername());
         }
         user.setXpEarned(gained);
+        // Profile + resume completeness is a rank pillar (B+) — re-evaluate rank (raise-only).
+        if (!"GUEST".equals(user.getRole())) rankEvaluationService.reevaluate(user.getId());
         return gained;
     }
 

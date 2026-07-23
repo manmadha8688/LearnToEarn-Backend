@@ -31,17 +31,20 @@ public class CodeSolveXpService {
     private final CacheService cacheService;
     private final UserDetailsServiceImpl userDetailsService;
     private final MongoTemplate mongoTemplate;
+    private final RankEvaluationService rankEvaluationService;
 
     public CodeSolveXpService(UserRepository userRepository,
                               ProgressService progressService,
                               CacheService cacheService,
                               UserDetailsServiceImpl userDetailsService,
-                              MongoTemplate mongoTemplate) {
+                              MongoTemplate mongoTemplate,
+                              RankEvaluationService rankEvaluationService) {
         this.userRepository = userRepository;
         this.progressService = progressService;
         this.cacheService = cacheService;
         this.userDetailsService = userDetailsService;
         this.mongoTemplate = mongoTemplate;
+        this.rankEvaluationService = rankEvaluationService;
     }
 
     /** Outcome carried to the judge response for the client toast / "Solved" state. */
@@ -84,17 +87,14 @@ public class CodeSolveXpService {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) return SolveResult.none();
 
-        String rankBefore = user.getRank() != null ? user.getRank() : "E";
         int xp = xpFor(problem.getTrack(), problem.getLevel());
-        progressService.applyXp(user, xp); // mutates xp/level/rank in-memory
+        progressService.applyXp(user, xp); // mutates xp/level in-memory (rank is event-driven)
 
-        String rankAfter = user.getRank() != null ? user.getRank() : "E";
         mongoTemplate.updateFirst(
                 new Query(Criteria.where("_id").is(userId)),
                 new Update()
                         .set("xp", user.getXp())
-                        .set("level", user.getLevel())
-                        .set("rank", rankAfter),
+                        .set("level", user.getLevel()),
                 User.class);
 
         cacheService.evict("progress", "summary:" + userId);
@@ -102,8 +102,9 @@ public class CodeSolveXpService {
         cacheService.evict("dashboardBootstrap", userId);
         userDetailsService.evict(user.getUsername());
 
-        boolean rankUp = !rankAfter.equals(rankBefore);
-        return new SolveResult(true, true, xp, user.getXp(), rankAfter, rankUp);
+        // Solving a problem is a rank pillar (coding count) — re-evaluate rank (raise-only).
+        RankEvaluationService.RankResult rr = rankEvaluationService.reevaluate(userId);
+        return new SolveResult(true, true, xp, user.getXp(), rr.rank(), rr.rankUp());
     }
 
     // ── XP matrix: xp = trackWeight + levelBonus (15..65) ──────────────────────

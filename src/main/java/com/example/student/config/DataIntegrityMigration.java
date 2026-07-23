@@ -25,7 +25,6 @@ import com.example.student.model.UserSubjectBadge;
 import com.example.student.model.WalkIn;
 import com.example.student.repository.UserRepository;
 import com.example.student.service.UsernameService;
-import com.example.student.util.RankUtil;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +85,8 @@ public class DataIntegrityMigration implements CommandLineRunner {
     @Override
     public void run(String... args) {
         dedupeRoadmapSubjects();
-        reconcileUserRanks();
+        dedupeUserDailyQuests();
+        backfillUserLevels();
         backfillUsernames();
         backfillProviders();
         dropLegacyConceptFields();
@@ -176,26 +176,31 @@ public class DataIntegrityMigration implements CommandLineRunner {
     }
 
     /**
-     * Recompute stored rank from total XP so threshold changes apply immediately.
-     * Idempotent — only saves when the stored letter differs from {@link RankUtil}.
+     * Backfill each user's stored level from total XP using the escalating {@link LevelUtil}
+     * curve (replaces the old flat xp/200). Idempotent — only saves when the stored level
+     * differs from the computed one.
+     *
+     * <p>Rank is intentionally NOT recomputed here anymore: it is category-gated and
+     * event-driven ({@code RankEvaluationService}), and existing users are grandfathered on
+     * their current stored rank, which is never lowered. Re-deriving rank from XP on every
+     * startup would defeat the category gating.
      */
-    private void reconcileUserRanks() {
+    private void backfillUserLevels() {
         Query q = new Query(Criteria.where("role").ne("GUEST"));
         List<User> users = mongoTemplate.find(q, User.class);
         int updated = 0;
         for (User u : users) {
-            String computed = RankUtil.computeRank(u.getXp());
-            String stored = u.getRank() != null ? u.getRank() : "E";
-            if (!computed.equals(stored)) {
-                u.setRank(computed);
+            int computedLevel = com.example.student.util.LevelUtil.levelForXp(u.getXp());
+            if (u.getLevel() != computedLevel) {
+                u.setLevel(computedLevel);
                 userRepository.save(u);
                 updated++;
             }
         }
         if (updated > 0) {
-            log.info("DataIntegrityMigration: reconciled rank for {} user(s)", updated);
+            log.info("DataIntegrityMigration: backfilled level for {} user(s)", updated);
         } else {
-            log.info("DataIntegrityMigration: user ranks clean — no reconciliation needed");
+            log.info("DataIntegrityMigration: user levels clean — no backfill needed");
         }
     }
 
@@ -245,6 +250,39 @@ public class DataIntegrityMigration implements CommandLineRunner {
                 Query.query(Criteria.where("_id").in(idsToDelete)), RoadmapSubject.class)
                 .getDeletedCount();
         log.info("DataIntegrityMigration: removed {} duplicate roadmap_subject link(s)", removed);
+    }
+
+    /**
+     * Remove duplicate (userId, questDate) daily-quest docs, keeping the most-progressed one
+     * (study-quest claimed first, then highest studySeconds) so no earned progress is lost.
+     * Historical duplicates (created by a race before the user_date_unique index existed) block
+     * that unique index from building AND make the Optional read throw
+     * IncorrectResultSizeDataAccessException. Cleaning here lets ensureIndexes() build the
+     * unique index, after which the existing retry logic prevents any recurrence.
+     */
+    private void dedupeUserDailyQuests() {
+        List<UserDailyQuest> all = mongoTemplate.findAll(UserDailyQuest.class);
+        Map<String, List<UserDailyQuest>> groups = all.stream()
+                .collect(Collectors.groupingBy(q -> q.getUserId() + "|" + q.getQuestDate()));
+
+        List<String> idsToDelete = new ArrayList<>();
+        for (List<UserDailyQuest> group : groups.values()) {
+            if (group.size() <= 1) continue;
+            group.sort(Comparator.comparing(UserDailyQuest::isStudyQuestClaimed)
+                    .thenComparingInt(UserDailyQuest::getStudySeconds).reversed());
+            for (int i = 1; i < group.size(); i++) {
+                idsToDelete.add(group.get(i).getId());
+            }
+        }
+
+        if (idsToDelete.isEmpty()) {
+            log.info("DataIntegrityMigration: user_daily_quests clean — no duplicates found");
+            return;
+        }
+        long removed = mongoTemplate.remove(
+                Query.query(Criteria.where("_id").in(idsToDelete)), UserDailyQuest.class)
+                .getDeletedCount();
+        log.info("DataIntegrityMigration: removed {} duplicate user_daily_quest doc(s)", removed);
     }
 
     /**

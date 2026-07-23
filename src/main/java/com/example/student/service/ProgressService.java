@@ -110,8 +110,7 @@ public class ProgressService {
         userRepository.findById(userId).ifPresent(user -> {
             long newXp = user.getXp() + totalXp;
             user.setXp(newXp);
-            user.setLevel(Math.max(1, (int)(newXp / 200)));
-            user.setRank(computeRank(newXp));
+            user.setLevel(com.example.student.util.LevelUtil.levelForXp(newXp));
             userRepository.save(user);
         });
 
@@ -139,8 +138,7 @@ public class ProgressService {
         if (user == null || amount == 0) return 0;
         long newXp = Math.max(0, user.getXp() + amount);
         user.setXp(newXp);
-        user.setLevel(Math.max(1, (int)(newXp / 200)));
-        user.setRank(computeRank(newXp));
+        user.setLevel(com.example.student.util.LevelUtil.levelForXp(newXp));
         return amount;
     }
 
@@ -150,8 +148,7 @@ public class ProgressService {
         userRepository.findById(userId).ifPresent(user -> {
             long newXp = user.getXp() + amount;
             user.setXp(newXp);
-            user.setLevel(Math.max(1, (int)(newXp / 200)));
-            user.setRank(computeRank(newXp));
+            user.setLevel(com.example.student.util.LevelUtil.levelForXp(newXp));
             userRepository.save(user);
         });
         cacheService.evict("progress", "summary:" + userId);
@@ -165,8 +162,7 @@ public class ProgressService {
         userRepository.findById(userId).ifPresent(user -> {
             long newXp = Math.max(0, user.getXp() - amount);
             user.setXp(newXp);
-            user.setLevel(Math.max(1, (int)(newXp / 200)));
-            user.setRank(computeRank(newXp));
+            user.setLevel(com.example.student.util.LevelUtil.levelForXp(newXp));
             userRepository.save(user);
         });
         cacheService.evict("progress", "summary:" + userId);
@@ -236,7 +232,7 @@ public class ProgressService {
                 ? xpSource
                 : userRepository.findById(userId).orElse(null);
         long   xp    = user != null ? user.getXp()    : completedConcepts * 50L;
-        int    level = user != null ? user.getLevel()  : Math.max(1, (int)(xp / 200));
+        int    level = user != null ? user.getLevel()  : com.example.student.util.LevelUtil.levelForXp(xp);
         String rank  = user != null ? user.getRank()   : computeRank(xp);
 
         // ── Per-subject progress ─────────────────────────────────────────────

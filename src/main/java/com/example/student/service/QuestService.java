@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,10 +125,20 @@ public class QuestService {
     /** Today's quest doc (a fresh transient one if the user hasn't started the day yet). */
     private UserDailyQuest loadToday(String userId) {
         LocalDate today = LocalDate.now(IST);
-        return questRepo.findByUserIdAndQuestDate(userId, today)
-                .orElseGet(() -> UserDailyQuest.builder()
-                        .userId(userId).questDate(today).studySeconds(0).studyQuestClaimed(false)
-                        .build());
+        List<UserDailyQuest> found = questRepo.findByUserIdAndQuestDate(userId, today);
+        if (found.isEmpty()) {
+            return UserDailyQuest.builder()
+                    .userId(userId).questDate(today).studySeconds(0).studyQuestClaimed(false)
+                    .build();
+        }
+        if (found.size() == 1) return found.get(0);
+        // Defensive: a legacy duplicate slipped through before the unique index was enforced.
+        // Keep the most-progressed doc (claimed first, then highest studySeconds) so no
+        // earned progress is lost; the startup migration removes the extras permanently.
+        return found.stream()
+                .max(Comparator.comparing(UserDailyQuest::isStudyQuestClaimed)
+                        .thenComparingInt(UserDailyQuest::getStudySeconds))
+                .orElse(found.get(0));
     }
 
     private boolean conceptDoneToday(String userId) {
